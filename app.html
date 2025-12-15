@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابتي الأكاديمية (جوال)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { DEFAULT: '#006771', dark: '#004d55', light: '#008c99' },
+                        gold: { DEFAULT: '#B18E51' },
+                        dark: { bg: '#0f172a', card: '#1e293b', text: '#f1f5f9' }
+                    },
+                    fontFamily: { sans: ['IBM Plex Sans Arabic', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'IBM Plex Sans Arabic', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .chat-enter { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .mobile-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        button, a { min-height: 44px; min-width: 44px; }
+        #root { max-width: 600px; margin-left: auto; margin-right: auto; }
+        
+        .schedule-grid-cell { 
+            height: 60px; 
+            border: 1px solid #e5e7eb;
+            background-color: #fff;
+            transition: all 0.1s;
+        }
+        .dark .schedule-grid-cell {
+             border: 1px solid #374151;
+             background-color: #1e293b;
+        }
+        
+        /* Chatbot Animations */
+        .chat-open { animation: scaleIn 0.2s ease-out forwards; transform-origin: bottom left; }
+        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
+
+    <!-- Import Map -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+      }
+    }
+    </script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-dark-bg dark:text-dark-text transition-colors duration-300">
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            LayoutDashboard, GraduationCap, CheckCircle2, FileText, User, Bell, LogOut, Coins,
+            ArrowRight, Clock, MapPin, Calendar, BookOpen, AlertCircle, TrendingUp, TrendingDown, X, 
+            PlusCircle, MinusCircle, RefreshCw, Printer, Download, Search,
+            Link, Check, AlertTriangle, Moon, Sun, Send, MessageCircle, Lock,
+            ChevronDown, ChevronLeft, CreditCard, FileBadge, Image as ImageIcon, 
+            Ban, Gift, ScrollText, Upload, Wallet, FileSignature, Camera,
+            ShieldAlert, Award, Hash, Menu, Mail, MoreVertical, FileCheck, Layers, Bot, Mic
+        } from 'lucide-react';
+
+        // --- Mock Data & Translations ---
+        const studentData = {
+            name: "فيصل عبدالله الخالد",
+            nameEn: "Faisal Abdullah Al-Khaled", // Added English Name
+            id: "444002548",
+            major: "هندسة البرمجيات",
+            majorEn: "Software Engineering", // Added English Major
+            gpa: 3.35,
+            completedHours: 40,
+            currentHours: 18,
+            totalHours: 120,
+            avatar: null 
+        };
+
+        const translations = {
+            ar: {
+                welcome: "مرحباً", dashboard: "الرئيسية", academic: "أكاديمي",
+                registration: "التسجيل", requests: "الطلبات", personal: "شخصي",
+                gpa: "المعدل التراكمي", progress: "نسبة الإنجاز", todaysLectures: "محاضرات اليوم",
+                upcomingExams: "الاختبارات القادمة", attendance: "حالة الحضور", quickActions: "الوصول السريع",
+                schedule: "الجدول الدراسي", results: "النتائج", plan: "الخطة الدراسية", addDrop: "التسجيل الإلكتروني",
+                searchPlaceholder: "ابحث عن خدمة...", statusRegular: "منتظم", now: "الآن",
+                chatbotTitle: "المساعد الأكاديمي (سند)", typeMessage: "اكتب رسالتك...",
+                back: "عودة", print: "طباعة", download: "تحميل",
+                hoursCompleted: "منجزة", hoursCurrent: "حالية", hoursRemaining: "متبقية",
+                mainTitle: "بوابتي الأكاديمية", moreServices: "خدمات أخرى",
+                notifications: "الإشعارات", academicServices: "خدمات أكاديمية",
+                regServices: "خدمات التسجيل", generalRequests: "الطلبات العامة",
+                profileFinance: "الملف الشخصي والمالي",
+                regSteps: "خطوات التسجيل", examsSchedule: "جدول الاختبارات",
+                absences: "الغيابات", academicRecord: "السجل الأكاديمي",
+                offeredCourses: "المقررات المطروحة", electronicReg: "التسجيل الإلكتروني",
+                addCourse: "إضافة مقرر", changeSection: "تغيير شعبة",
+                dropCourse: "حذف مقرر", regRequests: "طلبات التسجيل",
+                withdrawCourse: "انسحاب من مقرر", academicAction: "طلب حركة أكاديمية",
+                viewActions: "عرض الحركات", changeMajor: "طلب تغيير تخصص",
+                viewMajorRequests: "طلبات التخصص", financeRecord: "السجل المالي",
+                rewardsRecord: "سجل المكافآت", docs: "الوثائق والإفادات",
+                penalties: "سجل العقوبات", idPhoto: "الصورة الشخصية",
+                accountSettings: "إعدادات الحساب", totalHours: "إجمالي الساعات"
+            },
+            en: {
+                welcome: "Welcome", dashboard: "Home", academic: "Academic",
+                registration: "Registration", requests: "Requests", personal: "Profile",
+                gpa: "GPA", progress: "Progress", todaysLectures: "Today's Lectures",
+                upcomingExams: "Upcoming Exams", attendance: "Attendance", quickActions: "Quick Actions",
+                schedule: "Schedule", results: "Results", plan: "Study Plan", addDrop: "E-Registration",
+                searchPlaceholder: "Search for service...", statusRegular: "Regular", now: "Now",
+                chatbotTitle: "Academic Assistant (Sanad)", typeMessage: "Type a message...",
+                back: "Back", print: "Print", download: "Download",
+                hoursCompleted: "Completed", hoursCurrent: "Current", hoursRemaining: "Remaining",
+                mainTitle: "My Academic Portal", moreServices: "More Services",
+                notifications: "Notifications", academicServices: "Academic Services",
+                regServices: "Registration Services", generalRequests: "General Requests",
+                profileFinance: "Profile & Finance",
+                regSteps: "Registration Steps", examsSchedule: "Exams Schedule",
+                absences: "Absences", academicRecord: "Academic Record",
+                offeredCourses: "Offered Courses", electronicReg: "E-Registration",
+                addCourse: "Add Course", changeSection: "Change Section",
+                dropCourse: "Drop Course", regRequests: "Reg. Requests",
+                withdrawCourse: "Withdraw Course", academicAction: "Academic Action",
+                viewActions: "View Actions", changeMajor: "Change Major",
+                viewMajorRequests: "Major Requests", financeRecord: "Financial Record",
+                rewardsRecord: "Rewards History", docs: "Documents",
+                penalties: "Penalties", idPhoto: "ID Photo",
+                accountSettings: "Account Settings", totalHours: "Total Hours"
+            }
+        };
+
+        // --- Helper Components ---
+        
+        const MobileHeader = ({ title, showBack, onBack, onProfile, onNotifications, t, darkMode, toggleDarkMode, lang, toggleLang }) => (
+            <header className="bg-white dark:bg-dark-card/90 backdrop-blur-md sticky top-0 z-30 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex justify-between items-center shadow-sm">
+                <div className="flex items-center gap-2">
+                    {showBack ? (
+                        <button onClick={onBack} className={`p-2 text-gray-600 dark:text-gray-300 active:scale-95 transition-all group ${lang === 'ar' ? '' : 'rotate-180'}`}>
+                            <ArrowRight size={24} className="group-hover:text-primary" />
+                        </button>
+                    ) : (
+                        <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center text-white"><GraduationCap size={18}/></div>
+                    )}
+                    <h1 className={`font-bold text-lg ${showBack ? 'text-gray-800 dark:text-white' : 'text-primary dark:text-teal-400'}`}>{t[title] || title}</h1>
+                </div>
+                <div className="flex items-center gap-1.5">
+                     <button 
+                        onClick={toggleLang} 
+                        className="w-9 h-9 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                        {lang === 'ar' ? 'EN' : 'ع'}
+                    </button>
+                    <button 
+                        onClick={toggleDarkMode} 
+                        className="p-2 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors active:scale-90 active:rotate-12"
+                    >
+                        {darkMode ? <Sun size={20} className="text-yellow-500 fill-yellow-500"/> : <Moon size={20} />}
+                    </button>
+                    <button onClick={onNotifications} className="p-2 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full relative">
+                        <Bell size={20}/>
+                        <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></div>
+                    </button>
+                    <button onClick={onProfile} className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden border border-gray-300 flex items-center justify-center text-gray-400">
+                        <User size={16}/>
+                    </button>
+                </div>
+            </header>
+        );
+
+        const BottomNavBar = ({ mainTab, setMainTab, t }) => {
+            const tabs = [
+                { id: 'home', icon: LayoutDashboard, label: t.dashboard },
+                { id: 'academic', icon: GraduationCap, label: t.academic },
+                { id: 'reg', icon: CheckCircle2, label: t.registration },
+                { id: 'requests', icon: FileText, label: t.requests },
+                { id: 'personal', icon: User, label: t.personal }
+            ];
+
+            return (
+                <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-dark-card border-t border-gray-200 dark:border-gray-700 shadow-xl py-1">
+                    <div className="flex justify-around items-center h-16">
+                        {tabs.map(tab => {
+                            const Icon = tab.icon;
+                            const isActive = mainTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setMainTab(tab.id)}
+                                    className={`flex flex-col items-center justify-center w-full h-full transition-colors ${isActive ? 'text-primary' : 'text-gray-500 dark:text-gray-400 hover:text-primary'}`}
+                                >
+                                    <Icon size={24} className={`transition-transform duration-200 ${isActive ? 'scale-105' : ''}`} />
+                                    <span className={`text-[10px] font-bold mt-1 transition-colors ${isActive ? 'text-primary' : 'text-gray-500 dark:text-gray-400'}`}>{tab.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </nav>
+            );
+        };
+        
+        const ActionCard = ({ icon, title, onClick, color = "primary" }) => (
+            <button onClick={onClick} className="group relative flex flex-col items-center justify-center bg-white dark:bg-dark-card p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 hover:border-primary dark:hover:border-primary hover:shadow-md transition-all duration-300 h-28 w-full overflow-hidden active:scale-[0.98]">
+                <div className={`p-3 rounded-full mb-2 bg-${color === 'primary' ? 'teal' : color}-50 text-${color === 'primary' ? 'teal' : color}-600 dark:text-${color === 'primary' ? 'teal' : color}-400 group-hover:scale-110 transition-transform`}>
+                    {icon}
+                </div>
+                <span className="text-xs font-bold text-gray-600 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-teal-400 text-center">{title}</span>
+            </button>
+        );
+
+        // --- Notifications Component (New) ---
+        const NotificationsPage = ({ onBack }) => {
+            const notifications = [
+                { id: 1, title: "تم رصد درجة اختبار منتصف الفصل لمقرر هندسة البرمجيات", date: "منذ ساعتين", type: "academic", read: false },
+                { id: 2, title: "تذكير: فترة الحذف والإضافة تنتهي قريباً", date: "منذ يوم", type: "alert", read: true },
+                { id: 3, title: "تم قبول طلب الاعتذار عن المقرر", date: "منذ يومين", type: "success", read: true },
+                { id: 4, title: "إعلان هام بخصوص مكافآت التفوق", date: "منذ 3 أيام", type: "info", read: true }
+            ];
+
+            const getIcon = (type) => {
+                switch(type) {
+                    case 'academic': return <GraduationCap size={18} />;
+                    case 'alert': return <AlertTriangle size={18} />;
+                    case 'success': return <CheckCircle2 size={18} />;
+                    default: return <Bell size={18} />;
+                }
+            };
+
+            const getColor = (type) => {
+                switch(type) {
+                    case 'academic': return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
+                    case 'alert': return 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400';
+                    case 'success': return 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400';
+                    default: return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
+                }
+            };
+
+            return (
+                <div className="p-4 space-y-4 animate-fade-in">
+                    {notifications.length === 0 ? (
+                         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                            <Bell size={48} className="mb-4 opacity-50" />
+                            <p>لا توجد إشعارات جديدة</p>
+                        </div>
+                    ) : (
+                        notifications.map(notif => (
+                            <div key={notif.id} className={`p-4 rounded-xl border transition-all ${notif.read ? 'bg-white dark:bg-dark-card border-gray-100 dark:border-gray-700' : 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'}`}>
+                                <div className="flex gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${getColor(notif.type)}`}>
+                                        {getIcon(notif.type)}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className={`text-sm mb-1 ${notif.read ? 'text-gray-700 dark:text-gray-200' : 'text-gray-900 dark:text-white font-bold'}`}>{notif.title}</p>
+                                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                                            <Clock size={12}/> {notif.date}
+                                        </span>
+                                    </div>
+                                    {!notif.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            );
+        };
+
+        // --- CHATBOT COMPONENT ---
+        const ChatbotWidget = ({ isOpen, onClose }) => {
+            const [messages, setMessages] = useState([
+                { id: 1, type: 'bot', text: 'مرحباً فيصل 👋، أنا سند مساعدك الأكاديمي. كيف يمكنني خدمتك اليوم؟' }
+            ]);
+            const [input, setInput] = useState('');
+            const chatEndRef = useRef(null);
+
+            const handleSend = () => {
+                if (!input.trim()) return;
+                const userMsg = { id: Date.now(), type: 'user', text: input };
+                setMessages(prev => [...prev, userMsg]);
+                setInput('');
+                
+                // Mock Reply
+                setTimeout(() => {
+                    const botMsg = { id: Date.now() + 1, type: 'bot', text: 'شكراً لاستفسارك. سأقوم بالتحقق من ذلك لك فوراً...' };
+                    setMessages(prev => [...prev, botMsg]);
+                }, 1000);
+            };
+
+            useEffect(() => {
+                chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, [messages, isOpen]);
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-dark-bg chat-open md:max-w-[600px] md:mx-auto md:bottom-20 md:right-4 md:h-[600px] md:rounded-2xl md:shadow-2xl md:border md:border-gray-200 dark:md:border-gray-700">
+                    {/* Header */}
+                    <div className="bg-primary text-white p-4 flex justify-between items-center shadow-md">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                <Bot size={24} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold">سند (المساعد الذكي)</h3>
+                                <span className="text-[10px] text-teal-100 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span> متصل الآن</span>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition"><X size={20}/></button>
+                    </div>
+
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-dark-bg">
+                        {messages.map((msg) => (
+                            <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[80%] p-3 rounded-2xl ${msg.type === 'user' ? 'bg-primary text-white rounded-br-none' : 'bg-white dark:bg-dark-card text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-bl-none shadow-sm'}`}>
+                                    <p className="text-sm leading-relaxed">{msg.text}</p>
+                                </div>
+                            </div>
+                        ))}
+                        <div ref={chatEndRef}></div>
+                    </div>
+
+                    {/* Input */}
+                    <div className="p-3 bg-white dark:bg-dark-card border-t border-gray-200 dark:border-gray-700 flex gap-2 items-center">
+                        <button className="p-2 text-gray-400 hover:text-primary transition"><Mic size={20}/></button>
+                        <input 
+                            type="text" 
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                            placeholder="اكتب رسالتك..." 
+                            className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition dark:text-white"
+                        />
+                        <button onClick={handleSend} className="p-2.5 bg-primary text-white rounded-full hover:bg-teal-700 transition shadow-lg shadow-primary/20 active:scale-95"><Send size={18} className="rotate-180 -translate-x-0.5"/></button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- DETAILED PAGE IMPLEMENTATIONS ---
+        
+        const SchedulePage = ({ onBack, t }) => {
+            const [selectedLecture, setSelectedLecture] = useState(null);
+             const scheduleData = {
+                'الأحد': [ { id: 1, name: 'إحصاء هندسي', code: '101', startHour: 8, duration: 2, color: 'bg-[#56AB7C]', text: 'text-white', room: '101', prof: 'د. أحمد سالم', bldg: 'قاعة الخوارزمي', notes: 'يجب مراجعة الفصل السابق' } ],
+                'الاثنين': [ { id: 3, name: 'تحليل كيميائي', code: 'CH202', startHour: 10, duration: 2, color: 'bg-[#4F46E5]', text: 'text-white', room: 'Lab 3', prof: 'أ. محمد علي', bldg: 'مبنى المعامل', notes: 'معمل عملي' } ],
+                'الثلاثاء': [ { id: 5, name: 'تصميم واجهات', code: 'CS305', startHour: 16, duration: 2, color: 'bg-[#0082C0]', text: 'text-white', room: '205', prof: 'د. عمر', bldg: 'مبنى الحاسب', notes: 'حصة مراجعة' } ],
+                'الأربعاء': [ { id: 7, name: 'القرآن الكريم', code: 'QR101', startHour: 18, duration: 2, color: 'bg-[#E44B45]', text: 'text-white', room: 'Msj', prof: 'د. خالد', bldg: 'المصلى', notes: 'حفظ وتجويد' } ],
+                'الخميس': [ { id: 9, name: 'مشروع تخرج 1', code: 'GP401', startHour: 19, duration: 2, color: 'bg-[#9D79DC]', text: 'text-white', room: 'Lab 1', prof: 'أ. فهد', bldg: 'المعمل', notes: 'لقاء متابعة' } ]
+            };
+            const weekDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
+            const timeSlots = [];
+            for (let i = 8; i <= 21; i++) {
+                const start = i < 10 ? `0${i}` : i;
+                timeSlots.push({ hour: i, label: `${start}:00 - ${start}:50` });
+            }
+             const formatCellTime = (startHour, duration) => {
+                const start = startHour < 10 ? `0${startHour}` : startHour;
+                const endHour = startHour + duration - 1;
+                const end = endHour < 10 ? `0${endHour}` : endHour;
+                return `${start}:00 - ${end}:50`;
+            };
+            const formatModalTime = (startHour, duration) => {
+                const start = startHour < 10 ? `0${startHour}` : startHour;
+                const endHour = startHour + duration;
+                const end = endHour < 10 ? `0${endHour}` : endHour;
+                return `${start}:00 - ${end}:00`;
+            };
+            return (
+                <div className="p-4 space-y-4 animate-fade-in">
+                    <div className="flex justify-end"><button className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-lg text-sm font-bold shadow hover:bg-teal-700/20 transition active:scale-95"><Printer size={16}/> طباعة</button></div>
+                    <div className="bg-white dark:bg-dark-card rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm mobile-scroll-x overflow-y-auto max-h-[65vh] relative">
+                         <table className="min-w-[800px] text-center table-fixed border-collapse">
+                            <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 shadow-sm">
+                                <tr>
+                                    <th className="py-2 px-1 w-20 border-l border-gray-200 dark:border-gray-700 text-xs font-medium bg-gray-50 dark:bg-gray-800">الوقت</th>
+                                    {weekDays.map(day => (<th key={day} className="py-2 px-1 text-sm font-bold border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">{day}</th>))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                {timeSlots.map((slot) => {
+                                    const isOccupied = weekDays.some(day => scheduleData[day]?.some(lec => slot.hour > lec.startHour && slot.hour < lec.startHour + lec.duration));
+                                    if (isOccupied) return null;
+                                    return (
+                                        <tr key={slot.hour} className="h-[60px]">
+                                            <td className="schedule-grid-cell px-1 text-gray-500 dark:text-gray-400 text-[10px] font-mono font-bold align-top pt-2">{slot.label}</td>
+                                            {weekDays.map((day) => {
+                                                const lecture = scheduleData[day]?.find(l => l.startHour === slot.hour);
+                                                if (lecture) {
+                                                    return (
+                                                        <td key={day} rowSpan={lecture.duration} className="schedule-grid-cell p-1 relative align-top" style={{ height: `${60 * lecture.duration}px` }}>
+                                                            <button onClick={() => setSelectedLecture({ ...lecture, day })} className={`w-full h-full rounded-lg ${lecture.color} ${lecture.text} flex flex-col items-center justify-center text-center shadow-md hover:opacity-95 transition-opacity p-2`}><span className="font-bold text-xs leading-tight">{lecture.name}</span><span className="text-[10px] opacity-90 font-mono mt-0.5">{lecture.code}</span><span className="text-[9px] font-medium opacity-70 mt-1 dir-ltr font-mono tracking-wide">{formatCellTime(lecture.startHour, lecture.duration)}</span></button>
+                                                        </td>
+                                                    );
+                                                }
+                                                return <td key={day} className="schedule-grid-cell"></td>;
+                                            })}
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                     {selectedLecture && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setSelectedLecture(null)}>
+                            <div className="bg-white dark:bg-dark-card w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+                                <div className={`h-24 ${selectedLecture.color} relative flex items-center justify-center`}>
+                                    <button onClick={() => setSelectedLecture(null)} className="absolute top-4 right-4 bg-black/20 text-white p-2 rounded-full hover:bg-black/40 transition active:scale-95"><X size={20}/></button>
+                                    <h3 className="text-xl font-bold text-white mt-4">{selectedLecture.name}</h3>
+                                </div>
+                                <div className="p-6 space-y-4">
+                                    <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl"><div className="p-2 bg-white dark:bg-gray-700 rounded-full text-gray-500"><Calendar size={20}/></div><div><p className="text-xs text-gray-500">اليوم</p><p className="font-bold text-gray-800 dark:text-white text-sm">{selectedLecture.day}</p></div></div>
+                                    <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl"><div className="p-2 bg-white dark:bg-gray-700 rounded-full text-gray-500"><Clock size={20}/></div><div><p className="text-xs text-gray-500">الوقت والمدة</p><p className="font-bold text-gray-800 dark:text-white dir-ltr text-sm">{formatModalTime(selectedLecture.startHour, selectedLecture.duration)} ({selectedLecture.duration} س.)</p></div></div>
+                                    <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl"><div className="p-2 bg-white dark:bg-gray-700 rounded-full text-gray-500"><MapPin size={20}/></div><div><p className="text-xs text-gray-500">المكان والمحاضر</p><p className="font-bold text-gray-800 dark:text-white text-sm">{selectedLecture.bldg} - {selectedLecture.room}</p><p className="text-xs text-gray-600 dark:text-gray-400 mt-1">المحاضر: {selectedLecture.prof}</p></div></div>
+                                    <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-100 text-xs text-yellow-800 dark:text-yellow-300 flex items-start gap-2"><AlertCircle size={16} className="shrink-0"/><span>ملاحظات: {selectedLecture.notes || 'لا توجد ملاحظات.'}</span></div>
+                                </div>
+                                <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"><button onClick={() => setSelectedLecture(null)} className="w-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold py-3 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition active:scale-95">إغلاق</button></div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        
+        const PlanPage = ({ onBack, t }) => {
+             const levels = [
+                { 
+                    id: 1, 
+                    status: 'completed',
+                    courses: [
+                        { code: 'MATH101', name: 'تفاضل وتكامل 1', status: 'done', grade: 'ج+', hours: 4, req: null }, 
+                        { code: 'ENG101', name: 'لغة إنجليزية 1', status: 'done', grade: 'ب', hours: 3, req: null }, 
+                        { code: 'PHYS101', name: 'فيزياء عامة 1', status: 'done', grade: 'ب+', hours: 4, req: null },
+                        { code: 'CS101', name: 'مقدمة في الحوسبة', status: 'done', grade: 'أ', hours: 3, req: null }
+                    ] 
+                },
+                { 
+                    id: 2, 
+                    status: 'completed',
+                    courses: [
+                        { code: 'MATH102', name: 'تفاضل وتكامل 2', status: 'done', grade: 'ج+', hours: 4, req: 'تفاضل وتكامل 1' }, 
+                        { code: 'PHYS102', name: 'فيزياء عامة 2', status: 'done', grade: 'ب', hours: 4, req: 'فيزياء عامة 1' }, 
+                        { code: 'ENG102', name: 'لغة إنجليزية 2', status: 'done', grade: 'ب+', hours: 3, req: 'لغة إنجليزية 1' }, 
+                        { code: 'CS102', name: 'برمجة حاسب 1', status: 'done', grade: 'أ', hours: 4, req: 'مقدمة في الحوسبة' }
+                    ] 
+                },
+                { 
+                    id: 3, 
+                    status: 'current',
+                    courses: [
+                        { code: 'CS201', name: 'برمجة حاسب 2', status: 'current', grade: '', hours: 4, req: 'برمجة حاسب 1' }, 
+                        { code: 'MATH201', name: 'جبر خطي', status: 'current', grade: '', hours: 3, req: 'تفاضل وتكامل 2' },
+                        { code: 'ISL101', name: 'ثقافة إسلامية 1', status: 'done', grade: 'أ+', hours: 2, req: null },
+                        { code: 'STAT101', name: 'احتمالات وإحصاء', status: 'current', grade: '', hours: 3, req: 'تفاضل وتكامل 2' }
+                    ] 
+                },
+                { 
+                    id: 4, 
+                    status: 'locked',
+                    courses: [
+                        { code: 'CS204', name: 'تراكيب بيانات', status: 'locked', grade: '', hours: 3, req: 'برمجة حاسب 2' }, 
+                        { code: 'CS205', name: 'قواعد بيانات', status: 'locked', grade: '', hours: 3, req: 'برمجة حاسب 2' },
+                        { code: 'SE201', name: 'مقدمة هندسة برمجيات', status: 'locked', grade: '', hours: 3, req: 'برمجة حاسب 1' },
+                        { code: 'ISL102', name: 'ثقافة إسلامية 2', status: 'locked', grade: '', hours: 2, req: 'ثقافة إسلامية 1' }
+                    ] 
+                },
+                { 
+                    id: 5, 
+                    status: 'locked',
+                    courses: [
+                        { code: 'CS301', name: 'نظم تشغيل', status: 'locked', grade: '', hours: 3, req: 'تراكيب بيانات' }, 
+                        { code: 'CS302', name: 'شبكات حاسب', status: 'locked', grade: '', hours: 3, req: 'نظم تشغيل' },
+                        { code: 'SE301', name: 'تحليل وتصميم نظم', status: 'locked', grade: '', hours: 3, req: 'مقدمة هندسة برمجيات' }
+                    ] 
+                }
+            ];
+            const totalPlanHours = 120;
+
+            return (
+                <div className="p-4 space-y-6 animate-fade-in pb-20">
+                    <div className="bg-primary/10 text-primary px-3 py-2 rounded-xl text-sm font-bold border border-primary/20 text-center flex items-center justify-center gap-2">
+                        <BookOpen size={18}/>
+                         إجمالي الساعات في الخطة: {totalPlanHours} ساعة
+                    </div>
+                    
+                    <div className="grid grid-cols-1 gap-6">
+                        {levels.map((lvl) => (
+                            <div key={lvl.id} className="space-y-3">
+                                {/* Level Header */}
+                                <div className="flex items-center gap-2 px-2">
+                                    <div className={`w-2 h-6 rounded-full ${lvl.status === 'completed' ? 'bg-green-500' : (lvl.status === 'current' ? 'bg-primary' : 'bg-gray-300')}`}></div>
+                                    <h3 className="font-bold text-gray-800 dark:text-white text-lg">المستوى {lvl.id}</h3>
+                                    {lvl.status === 'completed' && <CheckCircle2 size={16} className="text-green-500"/>}
+                                </div>
+
+                                {/* Courses Grid */}
+                                <div className="grid grid-cols-1 gap-3">
+                                    {lvl.courses.map((course, i) => (
+                                        <div key={i} className={`bg-white dark:bg-dark-card rounded-2xl border ${course.status === 'locked' ? 'border-gray-100 dark:border-gray-800 opacity-70' : 'border-gray-200 dark:border-gray-700'} shadow-sm overflow-hidden relative`}>
+                                            <div className="p-4 flex justify-between items-center">
+                                                {/* Grade Badge (Left) */}
+                                                <div className="w-12 flex-shrink-0">
+                                                    {course.status === 'done' ? (
+                                                        <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 flex items-center justify-center font-bold text-lg shadow-sm">
+                                                            {course.grade}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-10 h-10"></div> // Spacer
+                                                    )}
+                                                </div>
+
+                                                {/* Course Details (Center) */}
+                                                <div className="flex-1 text-center">
+                                                    <h4 className={`font-bold text-base ${course.status === 'locked' ? 'text-gray-400' : 'text-gray-800 dark:text-white'}`}>{course.name}</h4>
+                                                    <div className="flex items-center justify-center gap-3 mt-1 text-xs font-mono text-gray-400">
+                                                        <span className="bg-gray-50 dark:bg-gray-800 px-1.5 rounded">{course.code}</span>
+                                                        <span className="font-bold text-gray-300">•</span>
+                                                        <span className={`font-bold ${course.status === 'locked' ? 'text-gray-400' : 'text-primary'}`}>{course.hours} Hrs</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Status Icon (Right) */}
+                                                <div className="w-12 flex justify-end flex-shrink-0">
+                                                    {course.status === 'done' ? (
+                                                        <div className="w-10 h-10 rounded-xl bg-green-50 border-2 border-green-100 flex items-center justify-center text-green-500">
+                                                            <Check size={20} strokeWidth={3} />
+                                                        </div>
+                                                    ) : course.status === 'locked' ? (
+                                                        <div className="w-10 h-10 rounded-xl bg-gray-50 border-2 border-gray-100 flex items-center justify-center text-gray-300">
+                                                            <Lock size={20} />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-xl bg-primary/5 border-2 border-primary/10 flex items-center justify-center text-primary">
+                                                            <Clock size={20} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Prerequisite Strip */}
+                                            {course.req && (
+                                                <div className="bg-[#FFF8F1] dark:bg-orange-900/10 border-t border-orange-100 dark:border-orange-900/20 py-2 px-4 flex items-center justify-center gap-2 text-xs text-[#9c4221] dark:text-orange-300">
+                                                    <Link size={12} className="rotate-45" />
+                                                    <span className="font-medium">متطلب: {course.req}</span>
+                                                </div>
+                                            )}
+                                            {!course.req && course.status !== 'locked' && (
+                                                 <div className="bg-gray-50 dark:bg-gray-800/30 py-2 px-4 flex items-center justify-center gap-2 text-[10px] text-gray-300">
+                                                    <span>لا يوجد متطلب سابق</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+        const ResultsPage = ({ onBack, t }) => {
+            // منطق تدرج الألوان (Gradient Logic)
+            const getGradeStyle = (score, max) => {
+                const pct = (score / max) * 100;
+                
+                // 90 - 100: ممتاز (أخضر غامق/زمردي)
+                if (pct >= 90) return { 
+                    text: 'text-emerald-700 dark:text-emerald-400', 
+                    bar: 'bg-emerald-500', 
+                    badge: 'bg-emerald-500' 
+                };
+                
+                // 80 - 89: جيد جداً (أزرق)
+                if (pct >= 80) return { 
+                    text: 'text-blue-600 dark:text-blue-400', 
+                    bar: 'bg-blue-500', 
+                    badge: 'bg-blue-500' 
+                };
+                
+                // 70 - 79: جيد (أصفر/ذهبي)
+                if (pct >= 70) return { 
+                    text: 'text-yellow-600 dark:text-yellow-400', 
+                    bar: 'bg-yellow-500', 
+                    badge: 'bg-yellow-500' 
+                };
+                
+                // 60 - 69: مقبول (برتقالي) - مرحلة التنبيه
+                if (pct >= 60) return { 
+                    text: 'text-orange-600 dark:text-orange-400', 
+                    bar: 'bg-orange-500', 
+                    badge: 'bg-orange-500' 
+                };
+                
+                // أقل من 60: راسب/ضعيف (أحمر)
+                return { 
+                    text: 'text-red-600 dark:text-red-500', 
+                    bar: 'bg-red-600', 
+                    badge: 'bg-red-600' 
+                };
+            };
+
+             const detailedResults = [
+                { 
+                    code: 'SE301', 
+                    name: 'هندسة برمجيات', 
+                    total: 95, 
+                    grade: 'أ+', 
+                    components: [
+                        { label: 'العملي', max: 20, student: 19, avg: 16 }, 
+                        { label: 'النصفي', max: 20, student: 18, avg: 14 }, 
+                        { label: 'أعمال سنة', max: 20, student: 20, avg: 18 }, 
+                        { label: 'النهائي', max: 40, student: 38, avg: 32 }
+                    ] 
+                },
+                { 
+                    code: 'CS305', 
+                    name: 'نظم تشغيل', 
+                    total: 78, 
+                    grade: 'ج+', 
+                    components: [
+                        { label: 'العملي', max: 20, student: 15, avg: 17 }, 
+                        { label: 'النصفي', max: 20, student: 14, avg: 15 }, 
+                        { label: 'أعمال سنة', max: 20, student: 18, avg: 18 }, 
+                        { label: 'النهائي', max: 40, student: 31, avg: 28 }
+                    ] 
+                },
+                { 
+                    code: 'MATH201', 
+                    name: 'إحصاء هندسي', 
+                    total: 65, 
+                    grade: 'د+', 
+                    components: [
+                        { label: 'العملي', max: 25, student: 15, avg: 20 }, 
+                        { label: 'النصفي', max: 25, student: 15, avg: 18 }, 
+                        { label: 'النهائي', max: 50, student: 35, avg: 35 }
+                    ] 
+                },
+                { 
+                    code: 'PHYS101', 
+                    name: 'فيزياء عامة', 
+                    total: 55, 
+                    grade: 'هـ', 
+                    components: [
+                        { label: 'العملي', max: 25, student: 9, avg: 18 }, 
+                        { label: 'النصفي', max: 25, student: 12, avg: 16 }, 
+                        { label: 'النهائي', max: 50, student: 33, avg: 30 }
+                    ] 
+                }
+            ];
+
+            return (
+                <div className="p-4 space-y-6 animate-fade-in pb-20">
+                    
+                    {/* قسم ملخص المعدل والرسم البياني */}
+                    <div className="space-y-4">
+                        {/* GPA Card - تصميم مطابق للصورة */}
+                        <div className="bg-[#006771] rounded-3xl p-6 text-white text-center shadow-lg relative overflow-hidden">
+                            <div className="relative z-10">
+                                <h3 className="text-sm font-medium opacity-90 mb-2 text-teal-50">المعدل التراكمي (GPA)</h3>
+                                <div className="flex items-end justify-center gap-2 mb-4">
+                                    <span className="text-6xl font-bold tracking-tighter">3.35</span>
+                                    <span className="text-xl opacity-80 mb-2 font-mono">/ 4.00</span>
+                                </div>
+                                <div className="flex justify-center gap-3">
+                                    <span className="bg-[#dcfce7] text-[#166534] px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-sm">
+                                        <Award size={14} /> جيد جداً
+                                    </span>
+                                    <span className="bg-[#ef4444] text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-sm">
+                                        <TrendingDown size={14} /> أقل بـ 0.45
+                                    </span>
+                                </div>
+                            </div>
+                            {/* Decorative Background Circles */}
+                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                            <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full blur-2xl"></div>
+                        </div>
+
+                        {/* Evolution Graph Card - رسم بياني بسيط */}
+                        <div className="bg-white dark:bg-dark-card rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                             <div className="flex justify-between items-center mb-6">
+                                <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2 text-sm">
+                                    <TrendingUp size={18} className="text-primary"/>
+                                    تطور المعدل الأكاديمي
+                                </h3>
+                             </div>
+                             
+                             {/* Simple SVG Line Chart */}
+                             <div className="relative h-40 w-full">
+                                <svg className="w-full h-full overflow-visible" viewBox="0 0 300 120" preserveAspectRatio="none">
+                                    {/* Grid Lines */}
+                                    <line x1="0" y1="120" x2="300" y2="120" stroke="#e5e7eb" strokeWidth="1" />
+                                    <line x1="0" y1="60" x2="300" y2="60" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 4" />
+                                    <line x1="0" y1="0" x2="300" y2="0" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 4" />
+
+                                    {/* Gradient Definition */}
+                                    <defs>
+                                        <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#006771" stopOpacity="0.2" />
+                                            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                                        </linearGradient>
+                                    </defs>
+
+                                    {/* Area Fill */}
+                                    <path 
+                                        d="M 20 50 L 85 35 L 150 60 L 215 20 L 280 65 L 280 120 L 20 120 Z" 
+                                        fill="url(#chartGradient)" 
+                                    />
+
+                                    {/* Line Path */}
+                                    <path 
+                                        d="M 20 50 L 85 35 L 150 60 L 215 20 L 280 65" 
+                                        fill="none" 
+                                        stroke="#006771" 
+                                        strokeWidth="2.5" 
+                                        strokeLinecap="round" 
+                                        strokeLinejoin="round"
+                                    />
+
+                                    {/* Points and Labels */}
+                                    {/* P1: 3.5 */}
+                                    <circle cx="20" cy="50" r="3.5" fill="white" stroke="#006771" strokeWidth="2" />
+                                    <text x="20" y="40" textAnchor="middle" fontSize="9" fill="#6b7280" className="font-bold">3.5</text>
+                                    
+                                    {/* P2: 3.65 */}
+                                    <circle cx="85" cy="35" r="3.5" fill="white" stroke="#006771" strokeWidth="2" />
+                                    <text x="85" y="25" textAnchor="middle" fontSize="9" fill="#6b7280" className="font-bold">3.65</text>
+
+                                    {/* P3: 3.4 */}
+                                    <circle cx="150" cy="60" r="3.5" fill="white" stroke="#006771" strokeWidth="2" />
+                                    <text x="150" y="50" textAnchor="middle" fontSize="9" fill="#6b7280" className="font-bold">3.4</text>
+
+                                    {/* P4: 3.8 */}
+                                    <circle cx="215" cy="20" r="3.5" fill="white" stroke="#006771" strokeWidth="2" />
+                                    <text x="215" y="10" textAnchor="middle" fontSize="9" fill="#6b7280" className="font-bold">3.8</text>
+
+                                    {/* P5: 3.35 */}
+                                    <circle cx="280" cy="65" r="3.5" fill="white" stroke="#006771" strokeWidth="2" />
+                                    <text x="280" y="55" textAnchor="middle" fontSize="9" fill="#6b7280" className="font-bold">3.35</text>
+                                </svg>
+                                
+                                {/* X-Axis Labels */}
+                                <div className="flex justify-between text-[9px] text-gray-400 mt-2 px-1 font-medium">
+                                    <span>المستوى 1</span>
+                                    <span>المستوى 2</span>
+                                    <span>المستوى 3</span>
+                                    <span>المستوى 4</span>
+                                    <span>الحالي</span>
+                                </div>
+                             </div>
+                        </div>
+                    </div>
+
+                    {/* Header Summary for Details */}
+                    <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 pb-2 mt-4">
+                        <FileText size={18} className="text-gray-400"/>
+                        <h3 className="font-bold text-gray-700 dark:text-gray-200 text-sm">تفاصيل درجات الفصل الحالي</h3>
+                    </div>
+
+                    <div className="space-y-6">
+                        {detailedResults.map((course, idx) => {
+                            const courseStyle = getGradeStyle(course.total, 100);
+                            
+                            return (
+                                <div key={idx} className="bg-white dark:bg-dark-card rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                    {/* Course Header */}
+                                    <div className="p-5 flex justify-between items-start border-b border-gray-50 dark:border-gray-800">
+                                        <div>
+                                            <h4 className="font-bold text-gray-800 dark:text-white text-lg">{course.name}</h4>
+                                            <span className="text-[10px] font-mono text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-md mt-1 inline-block border border-gray-200 dark:border-gray-700 tracking-wide">{course.code}</span>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <span className={`text-3xl font-bold font-mono ${courseStyle.text}`}>{course.total}</span>
+                                            <span className={`text-xs font-bold px-3 py-0.5 rounded-md mt-1 text-white ${courseStyle.badge}`}>{course.grade}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Legend */}
+                                    <div className="px-5 py-3 flex items-center gap-4 text-[10px] text-gray-400 border-b border-gray-50 dark:border-gray-800">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                                            <span>الدرجة والتقييم</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Components List */}
+                                    <div className="p-5 space-y-6">
+                                        {course.components.map((comp, cIdx) => {
+                                            const style = getGradeStyle(comp.student, comp.max);
+                                            const studentPercent = (comp.student / comp.max) * 100;
+                                            const avgPercent = (comp.avg / comp.max) * 100;
+                                            
+                                            return (
+                                                <div key={cIdx} className="relative">
+                                                    {/* Labels */}
+                                                    <div className="flex justify-between items-end mb-2">
+                                                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{comp.label}</span>
+                                                        <div className="flex items-baseline gap-1 font-mono dir-ltr">
+                                                            <span className={`text-lg font-bold ${style.text}`}>{comp.student}</span>
+                                                            <span className="text-xs text-gray-400">/ {comp.max}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Progress Bar Container */}
+                                                    <div className="relative h-2.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-visible">
+                                                        {/* Student Bar */}
+                                                        <div 
+                                                            className={`absolute top-0 right-0 h-full rounded-full z-10 transition-all duration-1000 ${style.bar}`} 
+                                                            style={{ width: `${studentPercent}%` }}
+                                                        ></div>
+                                                        
+                                                        {/* Average Marker */}
+                                                        <div 
+                                                            className="absolute top-[-4px] bottom-[-4px] w-0.5 bg-gray-400 dark:bg-gray-500 z-20 opacity-50"
+                                                            style={{ right: `${avgPercent}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    
+                                                    {/* Average Text Label */}
+                                                    <div className="relative mt-1 h-4">
+                                                        <span 
+                                                            className="absolute text-[9px] font-mono text-gray-400 transform translate-x-1/2"
+                                                            style={{ right: `${avgPercent}%` }}
+                                                        >
+                                                            Avg: {comp.avg}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+        const RegistrationStepsPage = ({ onBack, onStart }) => {
+            const steps = [
+                { id: 1, label: 'تحديث البيانات', status: 'completed' },
+                { id: 2, label: 'الحذف والإضافة', status: 'current' },
+                { id: 3, label: 'تأكيد الجدول', status: 'pending' },
+                { id: 4, label: 'طباعة الجدول', status: 'pending' }
+            ];
+
+            return (
+                <div className="p-4 space-y-4 animate-fade-in relative min-h-screen pb-32">
+                    <div className="bg-white dark:bg-dark-card p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex justify-between items-center">
+                        <div>
+                            <h3 className="font-bold text-gray-800 dark:text-white text-sm">{studentData.name}</h3>
+                            <p className="text-xs text-gray-500 font-mono mt-1">{studentData.id}</p>
+                            <span className="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded mt-2 inline-block">{studentData.major}</span>
+                        </div>
+                        <div className="text-center bg-primary/5 p-2 rounded-xl border border-primary/10">
+                            <span className="block text-[10px] text-gray-500 mb-1">المعدل التراكمي</span>
+                            <span className="font-bold text-primary text-lg font-mono">{studentData.gpa}</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-100 dark:border-green-800">
+                            <div className="flex items-center gap-2 mb-1">
+                                <CheckCircle2 size={16} className="text-green-600"/>
+                                <span className="text-xs font-bold text-green-700 dark:text-green-300">حالة الطالب</span>
+                            </div>
+                            <span className="text-sm font-bold text-gray-800 dark:text-white">مستمر للدراسة</span>
+                        </div>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800">
+                             <div className="flex items-center gap-2 mb-1">
+                                <Clock size={16} className="text-blue-600"/>
+                                <span className="text-xs font-bold text-blue-700 dark:text-blue-300">نهاية التسجيل</span>
+                            </div>
+                            <span className="text-sm font-bold text-gray-800 dark:text-white dir-ltr">15 May 23:59</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-dark-card p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                        <h4 className="text-xs font-bold text-gray-500 mb-3">العبء الدراسي المسموح</h4>
+                        <div className="flex justify-between items-center text-center divide-x divide-x-reverse divide-gray-100 dark:divide-gray-700">
+                            <div className="flex-1">
+                                <span className="block text-xs text-gray-400 mb-1">الحد الأدنى</span>
+                                <span className="font-bold text-gray-800 dark:text-white font-mono">12</span>
+                            </div>
+                            <div className="flex-1">
+                                <span className="block text-xs text-gray-400 mb-1">المسجل حالياً</span>
+                                <span className="font-bold text-primary font-mono text-lg">{studentData.currentHours}</span>
+                            </div>
+                            <div className="flex-1">
+                                <span className="block text-xs text-gray-400 mb-1">الحد الأقصى</span>
+                                <span className="font-bold text-gray-800 dark:text-white font-mono">18</span>
+                            </div>
+                        </div>
+                        <div className="mt-3 h-2 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary" style={{ width: `${(studentData.currentHours / 18) * 100}%` }}></div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-dark-card p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center justify-between relative">
+                            <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-gray-200 dark:bg-gray-700 -z-0"></div>
+                            {steps.map((step) => (
+                                <div key={step.id} className="relative z-10 flex flex-col items-center bg-white dark:bg-dark-card px-1">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 text-xs font-bold transition-colors ${step.status === 'completed' ? 'bg-primary border-primary text-white' : step.status === 'current' ? 'border-primary text-primary' : 'border-gray-300 text-gray-300'}`}>
+                                        {step.status === 'completed' ? <Check size={14}/> : step.id}
+                                    </div>
+                                    <span className={`text-[9px] mt-1.5 font-bold ${step.status === 'current' ? 'text-primary' : 'text-gray-400'}`}>{step.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 flex gap-3 items-start">
+                        <AlertTriangle className="text-yellow-600 shrink-0 mt-0.5" size={18}/>
+                        <div>
+                            <h4 className="font-bold text-yellow-800 dark:text-yellow-200 text-sm">تنبيهات هامة قبل البدء</h4>
+                            <ul className="text-xs text-yellow-700 dark:text-yellow-300 mt-2 list-disc list-inside space-y-1 leading-relaxed">
+                                <li>يجب الالتزام بالخطة الدراسية المعتمدة للقسم.</li>
+                                <li>لن يتم تثبيت الجدول إذا قلت الساعات عن الحد الأدنى (12 ساعة).</li>
+                                <li>في حال وجود تعارض، يجب مراجعة المرشد الأكاديمي.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                     <div className="fixed bottom-20 left-4 right-4 z-20">
+                        <button onClick={onStart} className="w-full bg-primary text-white py-3.5 rounded-xl font-bold hover:bg-teal-700 transition shadow-xl shadow-primary/20 active:scale-95 flex items-center justify-center gap-2 text-base">
+                            الدخول إلى الحذف والإضافة <ArrowRight size={18} className="rotate-180"/>
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+        const OfferedCoursesPage = ({ onBack, t }) => {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [selectedCourse, setSelectedCourse] = useState(null);
+
+            const courses = [
+                { code: 'MATH101', name: 'تفاضل وتكامل 1', college: 'العلوم الأساسية' }, 
+                { code: 'CS101', name: 'مقدمة في البرمجة', college: 'الحاسب الآلي' }, 
+                { code: 'ISL101', name: 'ثقافة إسلامية 1', college: 'الدراسات الإسلامية' }, 
+                { code: 'SE301', name: 'هندسة برمجيات', college: 'الحاسب الآلي' }
+            ];
+
+            // بيانات وهمية للشعب
+            const getSectionsForCourse = (courseCode) => {
+                const baseSections = [
+                    { id: 1, section: '101', prof: 'د. أحمد الحربي', time: '08:00 - 09:50', days: 'الأحد - الثلاثاء', status: 'open', location: 'قاعة 205' },
+                    { id: 2, section: '102', prof: 'د. محمد العتيبي', time: '10:00 - 11:50', days: 'الاثنين - الأربعاء', status: 'closed', location: 'قاعة 101' },
+                    { id: 3, section: '103', prof: 'أ. فهد الدوسري', time: '13:00 - 14:50', days: 'الأحد - الثلاثاء', status: 'open', location: 'معمل 3' }
+                ];
+                return baseSections.map(s => ({...s, id: courseCode + s.id}));
+            };
+
+            const filtered = courses.filter(c => c.name.includes(searchTerm) || c.code.toLowerCase().includes(searchTerm.toLowerCase()));
+
+            return (
+                <div className="p-4 space-y-6 animate-fade-in">
+                    <div className="relative"><Search className="absolute top-1/2 right-4 -translate-y-1/2 text-gray-400" size={20} /><input type="text" placeholder="ابحث برمز المقرر أو الاسم..." className="w-full p-3 pr-12 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-card shadow-sm focus:ring-2 focus:ring-primary/20 outline-none transition" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
+                    
+                    <div className="grid gap-3">
+                        {filtered.map((c, i) => (
+                            <div key={i} className="bg-white dark:bg-dark-card p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex justify-between items-center hover:border-primary transition shadow-sm">
+                                <div>
+                                    <h4 className="font-bold text-gray-800 dark:text-white">{c.name}</h4>
+                                    <div className="text-xs text-gray-500 mt-1 flex gap-2">
+                                        <span className="bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded font-mono border border-gray-100 dark:border-gray-700">{c.code}</span>
+                                        <span>{c.college}</span>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setSelectedCourse({ ...c, sections: getSectionsForCourse(c.code) })}
+                                    className="text-primary bg-primary/5 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-primary/10 active:scale-95 transition"
+                                >
+                                    عرض الشعب
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* نافذة عرض الشعب (Modal) */}
+                    {selectedCourse && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setSelectedCourse(null)}>
+                            <div className="bg-white dark:bg-dark-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                                <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/80 dark:bg-gray-800/80">
+                                    <div>
+                                        <h3 className="font-bold text-lg text-primary">{selectedCourse.name}</h3>
+                                        <p className="text-xs text-gray-500 font-mono">{selectedCourse.code}</p>
+                                    </div>
+                                    <button onClick={() => setSelectedCourse(null)} className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200"><X size={18}/></button>
+                                </div>
+                                <div className="overflow-y-auto p-4 space-y-3">
+                                    {selectedCourse.sections.map((sec) => (
+                                        <div key={sec.id} className={`p-4 rounded-xl border transition-all ${sec.status === 'open' ? 'bg-white dark:bg-dark-card border-gray-200 dark:border-gray-700 hover:border-primary' : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 opacity-75'}`}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-gray-800 dark:text-white text-sm">شعبة {sec.section}</span>
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sec.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {sec.status === 'open' ? 'مفتوحة' : 'مغلقة'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                    <User size={14} className="text-primary"/>
+                                                    <span>{sec.prof}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                    <Clock size={14} className="text-primary"/>
+                                                    <span className="dir-ltr">{sec.time}</span>
+                                                    <span className="text-gray-300">|</span>
+                                                    <span>{sec.days}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                    <MapPin size={14} className="text-primary"/>
+                                                    <span>{sec.location}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        const DepartmentRequestPage = ({ onBack, type, t }) => {
+            const titles = { 'add': 'إضافة مقرر بموافقة القسم', 'drop': 'حذف مقرر بموافقة القسم', 'change': 'تغيير شعبة بموافقة القسم' };
+            const myCourses = [ { code: 'CS204', name: 'برمجة 2 - CS204' }, { code: 'CS205', name: 'قواعد بيانات - CS205' }, { code: 'ISL102', name: 'ثقافة إسلامية 2 - ISL102' } ];
+            const offeredCourses = [ { code: 'SE301', name: 'هندسة برمجيات - SE301' }, { code: 'CS305', name: 'نظم تشغيل - CS305' }, { code: 'NET201', name: 'تراسل بيانات - NET201' }, { code: 'MATH201', name: 'إحصاء هندسي - MATH201' } ];
+            const coursesList = type === 'add' ? offeredCourses : myCourses;
+            const labelText = type === 'add' ? 'اختر المقرر المراد إضافته' : (type === 'drop' ? 'اختر المقرر المراد حذفه' : 'اختر المقرر المراد تغيير شعبته');
+            const [submitted, setSubmitted] = useState(false);
+            const [selectedCourse, setSelectedCourse] = useState('');
+            if(submitted) {
+                return (
+                    <div className="p-4 animate-fade-in text-center py-20 flex flex-col items-center justify-center h-full"><div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-sm"><Check size={40}/></div><h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">تم إرسال الطلب بنجاح</h3><p className="text-gray-500 mb-6 font-mono bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-lg">رقم الطلب: #REQ-{Math.floor(Math.random()*10000)}</p><button onClick={onBack} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition w-full max-w-xs">عودة للقائمة</button></div>
+                )
+            }
+            return (
+                <div className="p-4 space-y-6 animate-fade-in">
+                    <div className="bg-white dark:bg-dark-card p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm"><h3 className="font-bold text-gray-800 dark:text-white text-lg mb-6 border-r-4 border-primary pr-3">{titles[type]}</h3><div className="space-y-5"><div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">{labelText}</label><div className="relative"><select className="w-full p-3 pr-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-primary outline-none appearance-none text-gray-700 dark:text-gray-200 transition" value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}><option value="" disabled>-- اختر من القائمة --</option>{coursesList.map((c, i) => (<option key={i} value={c.code}>{c.name}</option>))}</select><ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18}/></div></div>{type !== 'drop' && (<div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">رقم الشعبة المطلوبة</label><input type="number" className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-primary outline-none transition" placeholder="مثال: 201" /></div>)}<div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">المبررات</label><textarea className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-primary outline-none h-32 transition" placeholder="يرجى كتابة سبب تقديم الطلب بوضوح..."></textarea></div><button onClick={() => setSubmitted(true)} disabled={!selectedCourse} className={`w-full font-bold py-3.5 rounded-xl transition shadow-lg active:scale-95 flex items-center justify-center gap-2 ${!selectedCourse ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' : 'bg-primary text-white hover:bg-teal-700 shadow-primary/20'}`}><Send size={18} className="rotate-180"/>إرسال الطلب</button></div></div>
+                </div>
+            );
+        };
+        const RegistrationRequestsPage = ({ onBack, t }) => {
+            const requests = [{ id: 501, type: 'إضافة مقرر', course: 'CS302', status: 'pending', date: '2024-05-10' }, { id: 402, type: 'تغيير شعبة', course: 'MATH201', status: 'approved', date: '2024-05-08' }, { id: 305, type: 'حذف مقرر', course: 'ISL101', status: 'rejected', date: '2024-05-01' }];
+            return (
+                <div className="p-4 space-y-6 animate-fade-in">{requests.length === 0 ? (<div className="text-center py-20 text-gray-400">لا توجد طلبات سابقة</div>) : (<div className="space-y-3">{requests.map(req => (<div key={req.id} className="bg-white dark:bg-dark-card p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex justify-between items-center shadow-sm hover:border-primary transition"><div><div className="font-bold text-gray-800 dark:text-white flex items-center gap-2 mb-1">{req.type}<span className="text-[10px] bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded font-mono text-gray-500 border border-gray-200 dark:border-gray-700">{req.course}</span></div><div className="text-xs text-gray-400 flex items-center gap-1"><Clock size={10}/> {req.date}</div></div><div>{req.status === 'pending' && <span className="bg-yellow-100 text-yellow-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"><Clock size={14}/> قيد الدراسة</span>}{req.status === 'approved' && <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"><Check size={14}/> مقبول</span>}{req.status === 'rejected' && <span className="bg-red-100 text-red-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"><X size={14}/> مرفوض</span>}</div></div>))}</div>)}</div>
+            );
+        };
+        const NewAcademicActionPage = ({ onBack, t }) => {
+            const [actionType, setActionType] = useState('');
+            const [submitted, setSubmitted] = useState(false);
+            if(submitted) {
+                return (
+                    <div className="p-4 animate-fade-in text-center py-20 flex flex-col items-center justify-center h-full"><div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-sm"><Check size={40}/></div><h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">تم تقديم الطلب بنجاح</h3><p className="text-gray-500 mb-6">سيتم مراجعة طلبك من قبل الجهة المختصة</p><button onClick={onBack} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition w-full max-w-xs">عودة</button></div>
+                )
+            }
+            return (
+                <div className="p-4 space-y-6 animate-fade-in"><div className="bg-white dark:bg-dark-card p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm"><h3 className="font-bold text-gray-800 dark:text-white text-lg mb-6 border-r-4 border-primary pr-3">تقديم طلب حركة أكاديمية</h3><div className="space-y-5"><div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">نوع الحركة الأكاديمية</label><div className="relative"><select className="w-full p-3 pr-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-primary outline-none appearance-none text-gray-700 dark:text-gray-200 transition" value={actionType} onChange={(e) => setActionType(e.target.value)}><option value="" disabled>-- اختر نوع الحركة --</option><option value="apology">اعتذار عن فصل دراسي</option><option value="postpone">تأجيل الدراسة</option><option value="reenroll">إعادة قيد</option><option value="chance">فرصة إضافية</option></select><ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18}/></div></div>{actionType === 'apology' && (<div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-200 flex gap-2"><AlertCircle size={18} className="shrink-0 mt-0.5"/><p className="leading-relaxed">تنبيه: الاعتذار عن الفصل الدراسي سيتم احتسابه ضمن المدة النظامية للدراسة.</p></div>)}<div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">المبررات (اختياري)</label><textarea className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-primary outline-none h-32 transition" placeholder="اكتب مبررات الطلب هنا..."></textarea></div><div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">المرفقات (تقرير طبي، إلخ)</label><div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center hover:border-primary transition cursor-pointer bg-gray-50 dark:bg-gray-800/50 group"><div className="w-12 h-12 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm group-hover:scale-110 transition"><Upload className="text-primary" size={24}/></div><span className="text-sm text-gray-500 font-medium">اضغط لرفع الملفات</span></div></div><button onClick={() => setSubmitted(true)} disabled={!actionType} className={`w-full font-bold py-3.5 rounded-xl transition shadow-lg active:scale-95 flex items-center justify-center gap-2 ${!actionType ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' : 'bg-primary text-white hover:bg-teal-700 shadow-primary/20'}`}><CheckCircle2 size={18}/>تأكيد الطلب</button></div></div></div>
+            );
+        };
+        const ViewAcademicActionsPage = ({ onBack, t }) => {
+            const actions = [{ id: 2055, type: 'اعتذار عن فصل', term: 'الفصل الثاني 1444', status: 'approved', date: '2023-01-15' }, { id: 1089, type: 'تأجيل دراسة', term: 'الفصل الأول 1444', status: 'rejected', date: '2022-09-01', note: 'تجاوز الحد المسموح للتأجيل' }];
+            const getStatusBadge = (status) => { if (status === 'approved') return <span className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 w-fit"><Check size={14}/> مقبول</span>; if (status === 'rejected') return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 w-fit"><X size={14}/> مرفوض</span>; return <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 w-fit"><Clock size={14}/> قيد الدراسة</span>; };
+            return (
+                <div className="p-4 space-y-6 animate-fade-in">{actions.length === 0 ? (<div className="text-center py-20 text-gray-500">لا توجد حركات أكاديمية سابقة</div>) : (<div className="space-y-4">{actions.map(action => (<div key={action.id} className="bg-white dark:bg-dark-card p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:border-primary transition"><div className="flex justify-between items-start mb-3"><div><h4 className="font-bold text-gray-800 dark:text-white text-lg">{action.type}</h4><p className="text-sm text-gray-500 mt-0.5">{action.term}</p></div>{getStatusBadge(action.status)}</div><div className="border-t border-gray-100 dark:border-gray-700 pt-3 flex flex-col gap-2"><div className="flex justify-between text-xs text-gray-400"><span className="flex items-center gap-1"><Hash size={12}/> {action.id}</span><span className="flex items-center gap-1"><Clock size={12}/> {action.date}</span></div>{action.note && <div className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 p-2.5 rounded-lg flex items-start gap-2"><AlertCircle size={14} className="shrink-0 mt-0.5"/> <span>ملاحظة: {action.note}</span></div>}</div></div>))}</div>)}</div>
+            );
+        };
+        const MajorChangeRequestPage = ({ onBack, t }) => {
+            const [submitted, setSubmitted] = useState(false);
+            if(submitted) {
+                return (
+                    <div className="p-4 animate-fade-in text-center py-20 flex flex-col items-center justify-center h-full"><div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-sm"><Check size={40}/></div><h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">تم استلام طلب التحويل</h3><p className="text-gray-500 mb-6">يمكنك متابعة حالة الطلب من صفحة "عرض طلبات تغيير التخصص"</p><button onClick={onBack} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition w-full max-w-xs">عودة للقائمة</button></div>
+                )
+            }
+            return (
+                <div className="p-4 space-y-6 animate-fade-in"><div className="bg-primary/5 border border-primary/10 p-4 rounded-xl flex justify-between items-center shadow-sm"><div><p className="text-xs text-gray-500 mb-1">التخصص الحالي</p><p className="font-bold text-primary">هندسة البرمجيات</p></div><div className="text-left"><p className="text-xs text-gray-500 mb-1">المعدل التراكمي</p><p className="font-bold text-gray-800 dark:text-white font-mono text-lg">3.35</p></div></div><div className="bg-white dark:bg-dark-card p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-6"><h3 className="font-bold border-b border-gray-100 dark:border-gray-700 pb-3 text-lg text-gray-800 dark:text-white border-r-4 border-primary pr-3">بيانات التحويل</h3><div className="space-y-4"><div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">الكلية المراد التحويل إليها</label><div className="relative"><select className="w-full p-3 pr-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-primary outline-none appearance-none text-gray-700 dark:text-gray-200 transition"><option>كلية الحاسب الآلي ونظم المعلومات</option><option>كلية الهندسة والعمارة الإسلامية</option><option>كلية العلوم التطبيقية</option></select><ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18}/></div></div><div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">التخصص المطلوب</label><div className="relative"><select className="w-full p-3 pr-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-primary outline-none appearance-none text-gray-700 dark:text-gray-200 transition"><option>علوم الحاسب الآلي</option><option>نظم المعلومات</option><option>هندسة حاسب آلي</option></select><ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18}/></div></div></div><div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-xs text-blue-700 dark:text-blue-300 flex gap-2 border border-blue-100 dark:border-blue-800"><AlertCircle size={16} className="shrink-0 mt-0.5"/><p>يجب ألا يقل المعدل التراكمي عن 3.50 للتحويل إلى تخصص علوم الحاسب.</p></div><button onClick={() => setSubmitted(true)} className="w-full bg-primary text-white font-bold py-3.5 rounded-xl hover:bg-teal-700 transition shadow-lg shadow-primary/20 active:scale-95 flex items-center justify-center gap-2"><RefreshCw size={18}/>تقديم طلب التحويل</button></div></div>
+            );
+        };
+        const ViewMajorChangeRequestsPage = ({ onBack, t }) => {
+            const requests = [{ id: 9901, target: 'علوم الحاسب الآلي', date: '2023-05-10', status: 'pending', note: 'بانتظار موافقة عميد الكلية' }, { id: 8820, target: 'أمن سيبراني', date: '2022-12-01', status: 'rejected', note: 'المعدل لا يستوفي الشروط' }];
+            const getStatusBadge = (status) => { if (status === 'approved') return <span className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 w-fit"><Check size={14}/> مقبول</span>; if (status === 'rejected') return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 w-fit"><X size={14}/> مرفوض</span>; return <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 w-fit"><Clock size={14}/> قيد الدراسة</span>; };
+            return (
+                <div className="p-4 space-y-6 animate-fade-in"><div className="space-y-4">{requests.map(req => (<div key={req.id} className="bg-white dark:bg-dark-card p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:border-primary transition"><div className="flex justify-between items-start mb-3"><div><div className="text-xs text-gray-400 mb-1">التحويل إلى</div><h4 className="font-bold text-gray-800 dark:text-white text-lg">{req.target}</h4></div>{getStatusBadge(req.status)}</div><div className="border-t border-gray-100 dark:border-gray-700 mt-3 pt-3"><div className="flex justify-between text-xs text-gray-500 mb-2"><span className="flex items-center gap-1"><Clock size={12}/> {req.date}</span><span className="font-mono">#{req.id}</span></div>{req.note && <div className="bg-gray-50 dark:bg-gray-800 p-2.5 rounded-lg text-xs text-gray-600 dark:text-gray-300 flex items-start gap-2"><AlertCircle size={14} className="shrink-0 mt-0.5"/> {req.note}</div>}</div></div>))}</div></div>
+            );
+        };
+        const WithdrawPage = ({ onBack, t }) => {
+            const courses = [{ code: 'CS101', name: 'مقدمة في البرمجة' }, { code: 'MATH101', name: 'تفاضل وتكامل' }];
+            const handleWithdraw = (c) => { console.log(`Attempting to withdraw from ${c.name}.`); };
+            return (
+                <div className="p-4 space-y-6 animate-fade-in"><div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 p-4 rounded-xl flex gap-3 shadow-sm"><AlertTriangle className="text-red-600 shrink-0 mt-0.5"/><p className="text-sm text-red-700 dark:text-red-200 leading-relaxed font-medium">تنبيه: الانسحاب من المقرر سيؤدي إلى رصد تقدير (ع) في سجلك الأكاديمي ولن يدخل في احتساب المعدل، ولكن ستحسب الساعات ضمن الحد الأقصى المسموح به.</p></div><div className="space-y-3">{courses.map((c, i) => (<div key={i} className="bg-white dark:bg-dark-card p-5 rounded-xl border border-gray-200 dark:border-gray-700 flex justify-between items-center shadow-sm hover:border-red-300 transition group"><div><h4 className="font-bold text-gray-800 dark:text-white text-lg">{c.name}</h4><span className="text-xs font-mono text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded border border-gray-200 dark:border-gray-600 mt-1 inline-block">{c.code}</span></div><button onClick={() => handleWithdraw(c)} className="bg-red-50 text-red-600 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-red-600 hover:text-white transition border border-red-100 active:scale-95 shadow-sm group-hover:shadow-md">انسحاب</button></div>))}</div></div>
+            );
+        };
+        const ExamsPage = ({ onBack }) => {
+            const [selectedExam, setSelectedExam] = useState(null);
+            const exams = [{ id: 1, name: 'أمن المعلومات', code: 'CS320', date: '2024-05-15', time: '09:00 - 11:00', location: 'مبنى قاعة الملك سعود', room: 'قاعة أ', seat: '45', status: 'upcoming', instructions: ['إحضار الهوية الجامعية', 'ممنوع استخدام الآلة الحاسبة', 'الحضور قبل الموعد بـ 15 دقيقة'] }, { id: 2, name: 'إحصاء هندسي', code: 'MATH201', date: '2024-05-18', time: '08:00 - 10:00', location: 'كلية الحاسب', room: '101', seat: '12', status: 'upcoming', instructions: ['إحضار الآلة الحاسبة (غير المبرمجة)', 'قلم رصاص HB2'] }, { id: 3, name: 'ثقافة إسلامية 3', code: 'ISL103', date: '2024-05-22', time: '13:00 - 14:00', location: 'مبنى الفصول المشتركة', room: '205', seat: '88', status: 'upcoming', instructions: ['اختبار موضوعي (تظليل)', 'إحضار الهوية'] }, { id: 4, name: 'مشروع تخرج 1', code: 'GP401', date: '2024-05-25', time: '10:00 - 12:00', location: 'مبنى الحاسب', room: 'المعمل الرئيسي', seat: '-', status: 'upcoming', instructions: ['تسليم التقرير مطبوع', 'عرض تقديمي 10 دقائق'] }];
+            const nextExam = exams[0];
+            const daysLeft = 2;
+            return (
+                <div className="p-4 space-y-6 animate-fade-in"><div className="flex justify-end"><button className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-lg text-sm font-bold shadow hover:bg-teal-700/20 transition active:scale-95"><Printer size={16}/> طباعة البطاقة</button></div><div className="bg-gradient-to-r from-primary to-teal-800 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden"><div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div><div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-4"><div className="text-center md:text-right"><div className="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-bold mb-2 backdrop-blur-sm border border-white/10">الاختبار القادم</div><h2 className="text-2xl font-bold mb-1">{nextExam.name}</h2><p className="text-teal-100 text-sm flex items-center justify-center md:justify-start gap-2 opacity-90"><Clock size={16}/> {nextExam.date} • {nextExam.time}</p></div><div className="flex gap-4 items-center bg-white/10 p-3 rounded-2xl border border-white/10 backdrop-blur-md"><div className="text-center"><span className="block text-2xl font-bold font-mono">{daysLeft}</span><span className="text-[10px] text-teal-200">أيام</span></div><div className="w-px h-8 bg-white/20"></div><div className="text-center"><span className="block text-2xl font-bold font-mono">14</span><span className="text-[10px] text-teal-200">ساعة</span></div></div></div></div><div className="grid grid-cols-1 gap-4">{exams.map((exam) => (<button key={exam.id} onClick={() => setSelectedExam(exam)} className="group relative bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-2xl p-5 hover:border-primary dark:hover:border-primary hover:shadow-lg transition-all text-right flex items-stretch overflow-hidden"><div className="absolute top-0 right-0 w-1.5 h-full bg-gray-200 group-hover:bg-primary transition-colors"></div><div className="flex flex-col items-center justify-center pl-4 border-l border-gray-100 dark:border-gray-700 min-w-[70px]"><span className="text-2xl font-bold text-gray-800 dark:text-white font-mono">{exam.date.split('-')[2]}</span><span className="text-xs font-bold text-gray-500 uppercase">مايو</span></div><div className="flex-1 pr-4 py-1"><div className="flex justify-between items-start mb-2"><div><h3 className="font-bold text-lg text-gray-800 dark:text-white group-hover:text-primary transition-colors">{exam.name}</h3><span className="text-xs font-mono text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">{exam.code}</span></div><div className="bg-gray-50 dark:bg-gray-800 p-2 rounded-lg text-gray-400 group-hover:text-primary transition-colors"><ArrowRight size={20} className="rotate-180" /></div></div><div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mt-3"><span className="flex items-center gap-1.5"><Clock size={14}/> {exam.time.split('-')[0]}</span><span className="flex items-center gap-1.5"><MapPin size={14}/> {exam.room}</span></div></div></button>))}</div>{selectedExam && (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setSelectedExam(null)}><div className="bg-white dark:bg-dark-card w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 transform transition-all scale-100 flex flex-col" onClick={e => e.stopPropagation()}><div className="relative h-32 bg-primary flex items-center justify-center overflow-hidden"><div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div><div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div><button onClick={() => setSelectedExam(null)} className="absolute top-4 right-4 bg-black/20 text-white p-2 rounded-full hover:bg-black/40 transition z-10"><X size={20}/></button><div className="text-center relative z-10"><h3 className="text-2xl font-bold text-white mb-1">{selectedExam.name}</h3><span className="inline-block bg-white/20 text-white text-xs px-3 py-1 rounded-full font-mono backdrop-blur-sm">{selectedExam.code}</span></div></div><div className="p-6 space-y-6"><div className="grid grid-cols-2 gap-4"><div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl text-center border border-gray-100 dark:border-gray-700"><span className="block text-xs text-gray-500 mb-1">رقم المقعد</span><span className="block text-2xl font-bold text-primary font-mono">{selectedExam.seat}</span></div><div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl text-center border border-gray-100 dark:border-gray-700"><span className="block text-xs text-gray-500 mb-1">القاعة</span><span className="block text-lg font-bold text-gray-800 dark:text-white">{selectedExam.room}</span></div></div><div className="space-y-4"><div className="flex items-start gap-4"><div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl mt-1"><Calendar size={20}/></div><div><h4 className="font-bold text-gray-800 dark:text-white text-sm">التاريخ والوقت</h4><p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{selectedExam.date}</p><p className="text-sm text-gray-800 dark:text-gray-200 font-bold font-mono dir-ltr text-right">{selectedExam.time}</p></div></div><div className="flex items-start gap-4"><div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl mt-1"><MapPin size={20}/></div><div><h4 className="font-bold text-gray-800 dark:text-white text-sm">الموقع التفصيلي</h4><p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{selectedExam.location}</p></div></div><div className="flex items-start gap-4"><div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl mt-1"><AlertCircle size={20}/></div><div><h4 className="font-bold text-gray-800 dark:text-white text-sm">تعليمات هامة</h4><ul className="text-sm text-gray-500 dark:text-gray-400 mt-1 list-disc list-inside space-y-1">{selectedExam.instructions.map((inst, i) => (<li key={i}>{inst}</li>))}</ul></div></div></div></div><div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"><button onClick={() => setSelectedExam(null)} className="w-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold py-3 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition active:scale-95">إغلاق</button></div></div></div>)}</div>
+            );
+        };
+        const AbsencesPage = ({ onBack }) => {
+            const courses = [{ name: 'برمجة متقدمة', code: 'CS204', absencePct: 0, excused: false, totalHours: 48, absentHours: 0, records: [] }, { name: 'تحليل كيميائي', code: 'CH202', absencePct: 12, excused: false, totalHours: 32, absentHours: 4, records: [{ date: '2024-02-12', day: 'الاثنين', hours: 2, status: 'unexcused', note: 'غائب' }, { date: '2024-03-04', day: 'الاثنين', hours: 2, status: 'unexcused', note: 'غائب' }] }, { name: 'إحصاء هندسي', code: 'MATH201', absencePct: 20, excused: true, totalHours: 40, absentHours: 8, records: [{ date: '2024-01-28', day: 'الأحد', hours: 2, status: 'excused', note: 'تقرير طبي #442' }, { date: '2024-02-11', day: 'الأحد', hours: 2, status: 'excused', note: 'عذر مقبول' }, { date: '2024-03-10', day: 'الأحد', hours: 2, status: 'unexcused', note: 'غائب' }, { date: '2024-03-24', day: 'الأحد', hours: 2, status: 'excused', note: 'ظرف عائلي' }] }, { name: 'فيزياء عامة', code: 'PHYS101', absencePct: 16, excused: false, totalHours: 60, absentHours: 10, records: [{ date: '2024-02-05', day: 'الاثنين', hours: 4, status: 'unexcused', note: 'غائب' }, { date: '2024-03-11', day: 'الاثنين', hours: 2, status: 'unexcused', note: 'غائب' }, { date: '2024-04-01', day: 'الاثنين', hours: 4, status: 'excused', note: 'مراجعة مستشفى' }] }];
+            return (
+                <div className="p-4 space-y-6 animate-fade-in"><div className="flex justify-end"><div className="bg-primary/10 text-primary px-3 py-2 rounded-lg text-sm font-bold border border-primary/20 flex items-center gap-2"><FileText size={16}/> لائحة الغياب</div></div><div className="grid grid-cols-1 gap-6">{courses.map((course, idx) => { const progressPercent = Math.min((course.absencePct / 25) * 100, 100); let statusColor = "bg-green-500"; let statusText = ""; if (course.absencePct === 0) { statusColor = "bg-emerald-500"; statusText = "مثالي! واصل تميزك 🌟"; } else if (course.absencePct < 10) { statusColor = "bg-green-500"; statusText = "آمن"; } else if (course.absencePct >= 10 && course.absencePct < 15) { statusColor = "bg-yellow-500"; statusText = "تحذير"; } else if (course.absencePct >= 15) { if (course.excused) { statusColor = "bg-orange-400"; statusText = "مرتفع (بعذر)"; } else { statusColor = "bg-red-600"; statusText = "حرمان"; } } return (<div key={idx} className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"><div className="p-4 border-b border-gray-100 dark:border-gray-700"><div className="flex justify-between items-center mb-4"><div><h3 className="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2">{course.name}<span className="text-xs font-normal text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full font-mono">{course.code}</span></h3><div className="text-xs text-gray-500 mt-1 flex gap-3"><span>إجمالي الساعات: {course.totalHours}</span><span className="text-red-500">ساعات الغياب: {course.absentHours}</span></div></div><div className="text-left">{statusText && (<span className={`block text-xs px-2 py-1 rounded font-bold text-white shadow-sm mb-1 text-center ${statusColor}`}>{statusText}</span>)}<span className={`text-xl font-bold font-mono ${course.absencePct >= 15 && !course.excused ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'}`}>{course.absencePct}%</span></div></div><div className="relative w-full h-10"><div className="absolute top-3 w-full h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-visible"><div className="absolute inset-0 rounded-full overflow-hidden"><div className={`h-full transition-all duration-1000 ${statusColor}`} style={{ width: `${progressPercent}%` }}></div></div><div className="absolute -top-1 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600 z-10" style={{ right: '60%' }}></div><div className="absolute top-4 text-[9px] font-bold text-gray-400 translate-x-1/2" style={{ right: '60%' }}>15%</div><div className="absolute -top-1 bottom-0 w-0.5 bg-red-300 dark:bg-red-800 z-10" style={{ right: '99%' }}></div><div className="absolute top-4 text-[9px] font-bold text-red-400 translate-x-full" style={{ right: '99%' }}>25%</div><div className="absolute top-4 text-[9px] text-gray-400" style={{ right: '0%' }}>0%</div></div></div></div>{course.records.length > 0 ? (<div className="bg-gray-50 dark:bg-gray-800/30"><div className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700">سجل الأيام</div><div className="divide-y divide-gray-100 dark:divide-gray-700">{course.records.map((rec, rIdx) => { const percentage = ((rec.hours / course.totalHours) * 100).toFixed(1); return (<div key={rIdx} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition"><div className="flex items-center gap-4"><div className={`p-2 rounded-lg ${rec.status === 'excused' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'}`}><Calendar size={16}/></div><div><p className="text-sm font-bold text-gray-800 dark:text-gray-200">{rec.day} <span className="font-mono font-normal text-gray-500 text-xs dir-ltr">{rec.date}</span></p><div className="text-xs text-gray-500 flex items-center gap-1 mt-1"><span className="font-bold">{rec.hours} ساعات</span><span className="text-red-500 font-mono text-[10px] bg-red-50 dark:bg-red-900/30 px-1.5 rounded border border-red-100 dark:border-red-900">({percentage}%)</span><span className="text-gray-300 mx-1">•</span><span>{rec.note}</span></div></div></div><span className={`text-[10px] font-bold px-2 py-1 rounded ${rec.status === 'excused' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>{rec.status === 'excused' ? 'بعذر' : 'بدون عذر'}</span></div>); })}</div></div>) : <div className="p-6 text-center text-gray-400 text-sm flex flex-col items-center gap-2"><CheckCircle2 size={24} className="text-emerald-500 opacity-50"/>لا توجد غيابات مسجلة لهذه المادة</div>}</div>); })}</div></div>
+            );
+        };
+        const AcademicRecordPage = ({ onBack }) => {
+            const recordData = { student: { name: "فيصل عبدالله الخالد", id: "444002548", college: "الحاسب الآلي ونظم المعلومات", major: "هندسة البرمجيات", plan: "طالب بكالوريوس - خطة 2022", status: "منتظم", warnings: 0 }, semesters: [{ term: "الفصل الدراسي الأول 1445", courses: [ { code: "SE301", name: "هندسة برمجيات", hours: 3, earned: 3, grade: "أ+", points: "95" }, { code: "CS305", name: "نظم تشغيل", hours: 3, earned: 3, grade: "ج+", points: "78" }, { code: "MATH201", name: "إحصاء هندسي", hours: 2, earned: 2, grade: "ب+", points: "88" }, { code: "PHYS101", name: "فيزياء عامة", hours: 4, earned: 0, grade: "هـ", points: "55" } ], gpaSem: 3.15, gpaCum: 3.35 }, { term: "الفصل الدراسي الثاني 1444", courses: [ { code: "CS204", name: "برمجة 2", hours: 4, earned: 4, grade: "أ", points: "92" }, { code: "CS205", name: "قواعد بيانات", hours: 3, earned: 3, grade: "ب+", points: "86" }, { code: "ISL102", name: "ثقافة إسلامية 2", hours: 2, earned: 2, grade: "أ+", points: "98" } ], gpaSem: 3.80, gpaCum: 3.45 }] };
+            const downloadButton = (<button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-teal-700 transition active:scale-95"><Printer size={16}/> طباعة السجل</button>);
+            return (
+                <div className="p-4 space-y-6 animate-fade-in"><div className="flex justify-end">{downloadButton}</div><div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm"><div className="grid grid-cols-2 gap-4 text-sm"><div><span className="block text-gray-500 text-xs mb-1">الكلية</span><span className="font-bold text-gray-800 dark:text-white">{recordData.student.college}</span></div><div><span className="block text-gray-500 text-xs mb-1">التخصص</span><span className="font-bold text-gray-800 dark:text-white">{recordData.student.major}</span></div><div><span className="block text-gray-500 text-xs mb-1">نوع الخطة</span><span className="font-bold text-gray-800 dark:text-white">{recordData.student.plan}</span></div><div><span className="block text-gray-500 text-xs mb-1">الوضع الأكاديمي</span><span className="inline-flex items-center gap-2 font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 text-xs">{recordData.student.status} <CheckCircle2 size={14}/></span></div></div></div>{recordData.semesters.map((sem, idx) => { const totalEarned = sem.courses.reduce((acc, course) => acc + course.earned, 0); return (<div key={idx} className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden"><div className="bg-gray-50 dark:bg-gray-800/50 p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center"><h3 className="font-bold text-primary text-base flex items-center gap-2"><div className="w-1.5 h-6 bg-primary rounded-full"></div>{sem.term}</h3></div><div className="mobile-scroll-x"><table className="min-w-full text-right text-sm"><thead className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 text-gray-500 text-xs uppercase tracking-wider"><tr><th className="p-4">رمز</th><th className="p-4">المقرر</th><th className="p-4 text-center">ساع.</th><th className="p-4 text-center">درجة</th><th className="p-4 text-center">نقاط</th></tr></thead><tbody className="divide-y divide-gray-100 dark:divide-gray-700">{sem.courses.map((course, cIdx) => (<tr key={cIdx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition"><td className="p-4 font-mono text-gray-600">{course.code}</td><td className="p-4 font-bold text-gray-800 dark:text-white">{course.name}</td><td className="p-4 text-center text-gray-600">{course.hours}</td><td className="p-4 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${course.grade.includes('هـ') || course.grade === 'ح' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{course.grade}</span></td><td className="p-4 text-center font-mono font-bold text-gray-700 dark:text-gray-300">{course.points}</td></tr>))}</tbody><tfoot className="bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700"><tr><td colSpan="5" className="p-4"><div className="flex flex-col gap-3 text-sm"><div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-lg border border-emerald-100 dark:border-emerald-800 shadow-sm"><span className="text-gray-500 dark:text-gray-400 text-xs">ساعات مكتسبة</span><span className="font-bold text-lg text-emerald-600 dark:text-emerald-400 font-mono">{totalEarned}</span></div><div className="flex items-center justify-between bg-white dark:bg-gray-700 px-4 py-2 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm"><span className="text-gray-500 dark:text-gray-400 text-xs">المعدل الفصلي</span><span className="font-bold text-lg text-primary font-mono">{sem.gpaSem}</span></div><div className="flex items-center justify-between bg-primary/5 dark:bg-primary/20 px-4 py-2 rounded-lg border border-primary/10 dark:border-primary/30 shadow-sm"><span className="text-gray-500 dark:text-gray-400 text-xs">المعدل التراكمي</span><span className="font-bold text-lg text-primary font-mono">{sem.gpaCum}</span></div></div></td></tr></tfoot></table></div></div>); })}</div>
+            );
+        };
+        const AddDropPage = ({ onBack, t }) => {
+            const [availableCourses, setAvailableCourses] = useState([ { code: 'PHYS101', name: 'فيزياء عامة', hours: 4, sections: [ { id: 's1', section: '302', prof: 'د. سامي الحربي', time: '10:00 - 11:50', days: 'الأحد - الثلاثاء', status: 'open' }, { id: 's2', section: '305', prof: 'أ. ماجد الفهمي', time: '08:00 - 09:50', days: 'الاثنين - الأربعاء', status: 'open' }, { id: 's3', section: '308', prof: 'د. روبرت', time: '13:00 - 14:50', days: 'الأحد - الثلاثاء', status: 'closed' } ] }, { code: 'ISL101', name: 'ثقافة إسلامية', hours: 2, sections: [ { id: 's4', section: '401', prof: 'د. عبدالرحمن', time: '08:00 - 08:50', days: 'عن بعد', status: 'open' }, { id: 's5', section: '402', prof: 'د. عبدالله', time: '09:00 - 09:50', days: 'عن بعد', status: 'open' } ] }, { code: 'CS204', name: 'تراكيب بيانات', hours: 3, sections: [ { id: 's6', section: '201', prof: 'د. علي القحطاني', time: '10:00 - 10:50', days: 'الأحد - الثلاثاء - الخميس', status: 'open' } ] } ]);
+            const [enrolled, setEnrolled] = useState([ { id: 1, code: 'CS101', name: 'مقدمة في البرمجة', hours: 3, section: '201', prof: 'د. خالد', time: '08:00 - 08:50' }, { id: 2, code: 'MATH101', name: 'تفاضل وتكامل', hours: 4, section: '105', prof: 'د. مصطفى', time: '09:00 - 09:50' } ]);
+            const [filterTime, setFilterTime] = useState('');
+            const [selectedCourseForAdd, setSelectedCourseForAdd] = useState(null);
+            const [confirmationModal, setConfirmationModal] = useState(null); 
+            const [message, setMessage] = useState(null);
+
+            // --- Countdown Timer Logic ---
+            const [timeLeft, setTimeLeft] = useState({ days: 2, hours: 14, minutes: 45, seconds: 30 });
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setTimeLeft(prev => {
+                        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
+                        if (prev.minutes > 0) return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
+                        if (prev.hours > 0) return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
+                        if (prev.days > 0) return { ...prev, days: prev.days - 1, hours: 23, minutes: 59, seconds: 59 };
+                        return prev; 
+                    });
+                }, 1000);
+                return () => clearInterval(interval);
+            }, []);
+            // -----------------------------
+
+            const filteredAvailable = availableCourses.filter(course => { if (!filterTime) return true; return course.sections.some(sec => sec.time.includes(filterTime)); });
+            const handleDropClick = (course) => { setConfirmationModal({ type: 'drop', item: course, title: 'تأكيد الحذف', text: `هل أنت متأكد من رغبتك في حذف مقرر ${course.name}؟` }); };
+            const handleAddClick = (course) => { setSelectedCourseForAdd(course); };
+            const handleSectionSelect = (course, section) => { if (section.status === 'closed') { setMessage({ text: 'عذراً، هذه الشعبة مغلقة', type: 'error' }); setTimeout(() => setMessage(null), 3000); return; } setConfirmationModal({ type: 'add', item: { ...course, ...section, id: Date.now() }, title: 'تأكيد الإضافة', text: `هل أنت متأكد من إضافة ${course.name} - شعبة ${section.section}؟` }); };
+            const executeAction = () => { const action = confirmationModal.type; const item = confirmationModal.item; if (action === 'drop') { setEnrolled(enrolled.filter(c => c.id !== item.id)); setMessage({ text: 'تم حذف المقرر بنجاح', type: 'success' }); } else if (action === 'add') { setEnrolled([...enrolled, item]); setSelectedCourseForAdd(null); setMessage({ text: 'تم إضافة المقرر بنجاح', type: 'success' }); } setConfirmationModal(null); setTimeout(() => setMessage(null), 3000); };
+            const Toast = ({ message, type, onClose }) => (<div className={`fixed bottom-20 left-4 right-4 md:left-auto md:right-4 z-50 flex items-center justify-between gap-2 px-4 py-3 rounded-lg shadow-lg text-white font-bold text-sm animate-fade-in ${type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}><div className="flex items-center gap-2">{type === 'success' ? <CheckCircle2 size={18}/> : <AlertTriangle size={18}/>}{message}</div><button onClick={onClose} className="p-1 opacity-80 hover:opacity-100"><X size={14}/></button></div>);
+            
+            return (
+                <div className="p-4 space-y-6 animate-fade-in relative pb-20">
+                    {message && <Toast message={message.text} type={message.type} onClose={() => setMessage(null)} />}
+                    
+                    {/* --- Countdown Timer UI (Updated to Green) --- */}
+                    <div className="bg-gradient-to-r from-emerald-600 to-emerald-800 rounded-2xl p-4 text-white shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+                        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="text-center sm:text-right">
+                                <h3 className="font-bold text-sm mb-1 flex items-center justify-center sm:justify-start gap-2"><Clock size={16}/> الوقت المتبقي للتسجيل</h3>
+                                <p className="text-[10px] text-emerald-100 opacity-90">ينتهي التسجيل قريباً، بادر بضبط جدولك.</p>
+                            </div>
+                            <div className="flex gap-2 text-center items-center justify-center dir-ltr">
+                                <div className="bg-white/20 rounded-lg p-2 min-w-[45px] backdrop-blur-sm border border-white/10"><span className="block font-bold text-lg leading-none font-mono">{timeLeft.days}</span><span className="text-[9px] text-emerald-100">يوم</span></div>
+                                <div className="text-emerald-200 font-bold pb-4">:</div>
+                                <div className="bg-white/20 rounded-lg p-2 min-w-[45px] backdrop-blur-sm border border-white/10"><span className="block font-bold text-lg leading-none font-mono">{timeLeft.hours}</span><span className="text-[9px] text-emerald-100">ساعة</span></div>
+                                <div className="text-emerald-200 font-bold pb-4">:</div>
+                                <div className="bg-white/20 rounded-lg p-2 min-w-[45px] backdrop-blur-sm border border-white/10"><span className="block font-bold text-lg leading-none font-mono">{timeLeft.minutes}</span><span className="text-[9px] text-emerald-100">دقيقة</span></div>
+                                <div className="text-emerald-200 font-bold pb-4">:</div>
+                                <div className="bg-white/20 rounded-lg p-2 min-w-[45px] backdrop-blur-sm border border-white/10"><span className="block font-bold text-lg leading-none font-mono">{timeLeft.seconds}</span><span className="text-[9px] text-emerald-100">ثانية</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    {/* -------------------------- */}
+
+                    <div className="bg-primary/10 text-primary px-3 py-2 rounded-xl text-xs font-bold border border-primary/20 text-center">الساعات المسجلة حالياً: {enrolled.reduce((acc, c) => acc + c.hours, 0)} ساعة</div>
+                    
+                    {confirmationModal && (<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in"><div className="bg-white dark:bg-dark-card w-full max-w-sm rounded-2xl shadow-2xl p-6 border border-gray-100 dark:border-gray-700"><div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto ${confirmationModal.type === 'add' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{confirmationModal.type === 'add' ? <PlusCircle size={24}/> : <MinusCircle size={24}/>}</div><h3 className="text-lg font-bold text-center mb-2 text-gray-800 dark:text-white">{confirmationModal.title}</h3><p className="text-sm text-gray-500 text-center mb-6">{confirmationModal.text}</p><div className="flex gap-3"><button onClick={executeAction} className={`flex-1 py-2.5 rounded-xl text-white font-bold transition ${confirmationModal.type === 'add' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>تأكيد</button><button onClick={() => setConfirmationModal(null)} className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-bold hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">إلغاء</button></div></div></div>)}
+
+                    {selectedCourseForAdd && (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setSelectedCourseForAdd(null)}><div className="bg-white dark:bg-dark-card w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700 flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}><div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/80 dark:bg-gray-800/80"><div><h3 className="font-bold text-lg text-primary">{selectedCourseForAdd.name}</h3><p className="text-xs text-gray-500">اختر الشعبة المناسبة</p></div><button onClick={() => setSelectedCourseForAdd(null)} className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200"><X size={18}/></button></div><div className="overflow-y-auto p-4">{selectedCourseForAdd.sections.map((sec, idx) => (<div key={idx} className={`flex items-center justify-between p-3 mb-2 rounded-xl border transition-colors ${sec.status === 'open' ? 'bg-white dark:bg-dark-card border-gray-200 dark:border-gray-700 hover:border-primary' : 'bg-gray-50 dark:bg-gray-800 border-dashed border-gray-300 opacity-60'}`}><div><div className="font-bold text-gray-800 dark:text-white text-sm">شعبة {sec.section}</div><div className="text-xs text-gray-500 mt-1 flex items-center gap-2"><span className="font-mono dir-ltr">{sec.time}</span><span>{sec.prof}</span></div></div><button onClick={() => handleSectionSelect(selectedCourseForAdd, sec)} disabled={sec.status === 'closed'} className={`p-2 rounded-lg transition ${sec.status === 'open' ? 'bg-primary text-white hover:bg-teal-700 shadow-sm' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>{sec.status === 'open' ? <PlusCircle size={18}/> : <Lock size={18}/>}</button></div>))}</div></div></div>)}
+
+                    <div className="space-y-6"><div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-4"><h3 className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2 border-r-4 border-gray-400 pr-2"><FileCheck className="text-green-600" size={20}/> المقررات المسجلة حالياً</h3><div className="space-y-3">{enrolled.length === 0 ? <p className="text-center text-gray-400 py-4 text-sm">لا يوجد مقررات مسجلة</p> : enrolled.map(c => (<div key={c.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 group hover:border-red-200 transition-colors"><div><div className="font-bold text-gray-800 dark:text-white flex items-center gap-2 text-sm">{c.name}<span className="text-[10px] px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded font-mono text-gray-600">{c.section}</span></div><div className="text-xs text-gray-500 mt-1 flex gap-3 items-center"><span className="font-mono bg-white dark:bg-gray-700 px-1 rounded border dark:border-gray-600">{c.code}</span><span className="flex items-center gap-1"><User size={10}/> {c.prof}</span><span className="flex items-center gap-1 dir-ltr"><Clock size={10}/> {c.time}</span></div></div><button onClick={() => handleDropClick(c)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition shadow-sm border border-red-100 active:scale-95"><LogOut size={18} className="rotate-180"/></button></div>))}</div></div><div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-4"><div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 border-b border-gray-100 pb-3"><h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2 border-r-4 border-primary pr-2"><Layers className="text-primary" size={20}/> المقررات المطروحة</h3><div className="relative w-full"><Search size={16} className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400"/><input type="text" placeholder="تصفية بالوقت (مثلاً 10:00)..." value={filterTime} onChange={(e) => setFilterTime(e.target.value)} className="w-full pl-4 pr-9 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition"/></div></div><div className="space-y-3">{filteredAvailable.length === 0 ? <p className="text-center text-gray-400 py-8 text-sm">لا توجد مواد مطابقة للبحث</p> : filteredAvailable.map(c => (<div key={c.code} className="flex justify-between items-center p-3 bg-white border border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary transition shadow-sm"><div><div className="font-bold text-gray-800 dark:text-white text-sm">{c.name}</div><div className="text-xs text-gray-500 mt-1 flex gap-3"><span className="font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{c.code}</span><span>{c.hours} س</span><span className="text-primary font-bold">{c.sections.filter(s => s.status === 'open').length} شعب متاحة</span></div></div><button onClick={() => handleAddClick(c)} className="flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-teal-700 shadow-sm transition-transform active:scale-95"><PlusCircle size={16}/> إضافة</button></div>))}</div></div></div></div>
+            );
+        };
+        const PersonalPage = ({ onBack, activeView }) => {
+            const [imgSrc, setImgSrc] = useState(null);
+            const [toast, setToast] = useState(null);
+            const fileInputRef = useRef(null);
+            const handleFileChange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const url = URL.createObjectURL(file);
+                    setImgSrc(url);
+                    setToast({ type: 'success', message: 'تم رفع الصورة بنجاح!' });
+                    setTimeout(() => setToast(null), 3000);
+                }
+            };
+            const rewardsHistory = [
+                { id: 1, type: 'مكافأة شهرية', month: 'شوال 1445', amount: '990', status: 'تم الإيداع', date: '1445/10/25', isBonus: false },
+                { id: 11, type: 'مكافأة تفوق', month: 'ذو الحجة 1444', amount: '1000', status: 'تم الإيداع', date: '1444/12/20', isBonus: true },
+                { id: 12, type: 'مكافأة شهرية', month: 'ذو الحجة 1444', amount: '990', status: 'تم الإيداع', date: '1444/12/25', isBonus: false },
+            ];
+            
+            if (activeView === 'id-photo') {
+                 return (
+                    <div className="p-4 bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 text-center shadow-sm">
+                        <div className="relative w-40 h-40 mx-auto mb-6 group">
+                            <div className="w-full h-full rounded-full overflow-hidden border-4 border-gray-100 dark:border-gray-700 shadow-inner bg-gray-50 dark:bg-gray-800">
+                                {imgSrc ? <img src={imgSrc} alt="Profile" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><User size={64}/></div>}
+                            </div>
+                            <button onClick={() => fileInputRef.current.click()} className="absolute bottom-2 right-2 p-3 bg-primary text-white rounded-full shadow-lg hover:scale-110 transition border-4 border-white dark:border-dark-card"><Camera size={20}/></button>
+                            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*"/>
+                        </div>
+                        <h3 className="font-bold text-xl text-gray-800 dark:text-white">الصورة الجامعية</h3>
+                        <div className="mt-8 flex justify-center gap-3">
+                            <button onClick={() => fileInputRef.current.click()} className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-teal-700 transition flex items-center gap-2 shadow-lg shadow-primary/20 active:scale-95"><Upload size={18}/> اختيار صورة</button>
+                        </div>
+                    </div>
+                );
+            }
+            if (activeView === 'finance') {
+                 return (
+                    <div className="p-4 space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                                <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">إجمالي المستحقات</span>
+                                <div className="text-xl font-bold text-emerald-800 dark:text-emerald-200 mt-1 font-mono">21,790 SAR</div>
+                            </div>
+                            <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800">
+                                <span className="text-red-600 dark:text-red-400 text-xs font-bold">المخصومات</span>
+                                <div className="text-xl font-bold text-red-800 dark:text-red-200 mt-1 font-mono">-50 SAR</div>
+                            </div>
+                        </div>
+                        <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                            <h4 className="font-bold text-gray-800 dark:text-white text-md border-r-4 border-primary pr-2 p-4">سجل العمليات المالية</h4>
+                            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                <div className="flex justify-between items-center p-4"><span className="text-gray-500 text-xs">مكافأة شهرية - رجب 1445</span><span className="font-bold text-primary font-mono text-sm">990 SAR</span><span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold">تم التحويل</span></div>
+                                <div className="flex justify-between items-center p-4"><span className="text-gray-500 text-xs">خصم (غياب سكن) - جمادى الأولى 1445</span><span className="font-bold text-red-600 font-mono text-sm">-50 SAR</span><span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[10px] font-bold">مخصوم</span></div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            if (activeView === 'rewards') {
+                 return (
+                    <div className="p-4 space-y-4">
+                        <div className="bg-gradient-to-br from-gold to-yellow-600 p-6 rounded-2xl text-white shadow-lg relative overflow-hidden flex justify-between items-center">
+                            <div className="relative z-10"><h3 className="font-bold text-xl mb-1">إجمالي المكافآت</h3><p className="text-yellow-100 text-sm">منذ الالتحاق</p><p className="text-3xl font-bold font-mono mt-2">21,790 SAR</p></div>
+                            <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm"><Coins size={36}/></div>
+                        </div>
+                        <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                            <h4 className="font-bold text-gray-800 dark:text-white text-md border-r-4 border-primary pr-2 p-4">السجل التفصيلي</h4>
+                            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                {rewardsHistory.map((reward) => (
+                                    <div key={reward.id} className="p-4 flex flex-col hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <div className="font-bold text-gray-800 dark:text-white flex items-center gap-2 text-sm">{reward.isBonus && <Award size={16} className="text-gold"/>}{reward.type}</div>
+                                            <span className={`font-mono font-bold ${reward.isBonus ? 'text-gold' : 'text-primary'}`}>{reward.amount} SAR</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            if (activeView === 'penalties') {
+                return (
+                    <div className="p-4 space-y-6">
+                        <div className="bg-white dark:bg-dark-card p-10 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm text-center">
+                            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <ShieldAlert size={40}/>
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white">سجلك نظيف!</h3>
+                            <p className="text-gray-500 mt-2">لا توجد عليك أي عقوبات أو مخالفات مسجلة.</p>
+                        </div>
+                    </div>
+                );
+            }
+            if (activeView === 'allowances') {
+                 return (
+                    <div className="p-4 space-y-4">
+                        <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                            <h4 className="font-bold text-gray-800 dark:text-white text-md border-r-4 border-primary pr-2 p-4">بدلات تم صرفها</h4>
+                             <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                <div className="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                                    <span className="font-bold text-gray-800 dark:text-white text-sm">بدل كتب ومراجع</span>
+                                    <span className="font-bold text-primary font-mono text-sm">850 SAR</span>
+                                    <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold">صُرفت</span>
+                                </div>
+                                <div className="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                                    <span className="font-bold text-gray-800 dark:text-white text-sm">بدل أدوات علمية</span>
+                                    <span className="font-bold text-primary font-mono text-sm">400 SAR</span>
+                                    <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold">صُرفت</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            if (activeView === 'docs') {
+                return (
+                    <div className="p-4 space-y-4">
+                        <div className="grid grid-cols-1 gap-4">
+                            <div className="p-5 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-between bg-white dark:bg-dark-card hover:border-primary transition group shadow-sm">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition"><ScrollText size={24}/></div>
+                                    <div><h4 className="font-bold text-gray-800 dark:text-white">إفادة انتظام</h4><p className="text-xs text-gray-500">موجهة للجهات الحكومية والخاصة</p></div>
+                                </div>
+                                <button className="text-primary hover:bg-primary/10 p-2 rounded-lg active:scale-95"><Printer size={20}/></button>
+                            </div>
+                            <div className="p-5 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-between bg-white dark:bg-dark-card hover:border-primary transition group shadow-sm">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-purple-50 text-purple-600 rounded-lg group-hover:bg-purple-600 group-hover:text-white transition"><FileBadge size={24}/></div>
+                                    <div><h4 className="font-bold text-gray-800 dark:text-white">السجل الأكاديمي</h4><p className="text-xs text-gray-500">نسخة رسمية (عربي/إنجليزي)</p></div>
+                                </div>
+                                <button className="text-primary hover:bg-primary/10 p-2 rounded-lg active:scale-95"><Download size={20}/></button>
+                            </div>
+                            <div className="p-5 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-between bg-white dark:bg-dark-card hover:border-primary transition group shadow-sm">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-teal-50 text-teal-600 rounded-lg group-hover:bg-teal-600 group-hover:text-white transition"><CreditCard size={24}/></div>
+                                    <div><h4 className="font-bold text-gray-800 dark:text-white">مشهد مكافأة</h4><p className="text-xs text-gray-500">تعريف بالراتب والمكافآت</p></div>
+                                </div>
+                                <button className="text-primary hover:bg-primary/10 p-2 rounded-lg active:scale-95"><Printer size={20}/></button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+            return <div className="p-4 text-center">صفحة شخصية (نموذج)</div>;
+        };
+        const UserAccountPage = ({ onBack }) => {
+            const user = {
+                name: "فيصل عبدالله الخالد",
+                id: "444002548",
+                email: "s444002548@st.uqu.edu.sa",
+                college: "الحاسب الآلي ونظم المعلومات",
+                dept: "هندسة الحاسب الآلي",
+                major: "هندسة البرمجيات",
+                degree: "بكالوريوس",
+                type: "انتظام",
+                advisor: "د. محمد الغامدي",
+                advisorEmail: "advisor@uqu.edu.sa"
+            };
+
+            const handleEmailAdvisor = () => {
+                window.location.href = `mailto:${user.advisorEmail}`;
+            };
+
+            return (
+                <div className="p-4 space-y-6 animate-fade-in">
+                    
+                    {/* بطاقة الطالب */}
+                    <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm flex flex-col items-center text-center relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-r from-primary to-teal-800"></div>
+                        <div className="relative z-10 mt-4">
+                            <div className="w-24 h-24 rounded-full border-4 border-white dark:border-dark-card shadow-lg bg-gray-200 flex items-center justify-center mx-auto overflow-hidden">
+                                <User size={48} className="text-gray-400"/>
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-800 dark:text-white mt-3">{user.name}</h2>
+                            <p className="text-gray-500 font-mono text-sm mt-1">{user.email}</p>
+                            <span className="inline-block mt-3 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold border border-primary/20">طالب {user.type}</span>
+                        </div>
+                    </div>
+
+                    {/* البيانات الأكاديمية (الجديدة) */}
+                    <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                        <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                             <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2 text-sm"><FileText size={16} className="text-primary"/> البيانات الأكاديمية</h3>
+                        </div>
+                        <div className="p-4 space-y-4 text-sm">
+                             <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-3">
+                                <span className="text-gray-500 dark:text-gray-400">الرقم الجامعي</span>
+                                <span className="font-bold text-gray-800 dark:text-white font-mono">{user.id}</span>
+                             </div>
+                             <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-3">
+                                <span className="text-gray-500 dark:text-gray-400">الكلية</span>
+                                <span className="font-bold text-gray-800 dark:text-white">{user.college}</span>
+                             </div>
+                             <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-3">
+                                <span className="text-gray-500 dark:text-gray-400">القسم</span>
+                                <span className="font-bold text-gray-800 dark:text-white">{user.dept}</span>
+                             </div>
+                             <div className="flex justify-between items-center">
+                                <span className="text-gray-500 dark:text-gray-400">التخصص</span>
+                                <span className="font-bold text-gray-800 dark:text-white">{user.major}</span>
+                             </div>
+                        </div>
+                    </div>
+
+                    {/* المرشد الأكاديمي */}
+                    <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center border border-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400">
+                                <User size={20} />
+                            </div>
+                            <div>
+                                <span className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">المرشد الأكاديمي</span>
+                                <h4 className="font-bold text-gray-800 dark:text-white text-sm">{user.advisor}</h4>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={handleEmailAdvisor}
+                            className="flex items-center gap-2 bg-primary text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-teal-700 transition shadow-lg shadow-primary/20 active:scale-95"
+                        >
+                            <Send size={14} className="rotate-180" />
+                            مراسلة
+                        </button>
+                    </div>
+
+                    {/* إعدادات الحساب */}
+                    <div className="bg-white dark:bg-dark-card rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                        <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                            <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2 text-sm"><Lock size={16} className="text-primary"/> إعدادات الأمان</h3>
+                        </div>
+                        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                            <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/30 transition text-right group">
+                                <div className="flex items-center gap-3"><div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><User size={18}/></div><span className="font-bold text-gray-700 dark:text-gray-200 text-sm">تعديل الملف الشخصي</span></div>
+                                <ChevronLeft size={18} className="text-gray-400 group-hover:text-primary transition-transform group-hover:-translate-x-1"/>
+                            </button>
+                            <button className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/30 transition text-right group">
+                                <div className="flex items-center gap-3"><div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><ShieldAlert size={18}/></div><span className="font-bold text-gray-700 dark:text-gray-200 text-sm">التحقق بخطوتين (2FA)</span></div>
+                                <div className="flex items-center gap-2"><span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold">مفعل</span><ChevronLeft size={18} className="text-gray-400 group-hover:text-primary transition-transform group-hover:-translate-x-1"/></div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        // --- ADDED MISSING MAIN VIEW COMPONENTS ---
+
+        const AcademicMainView = ({ setSubView, t }) => {
+            const academicServices = [{ id: 'schedule', label: t.schedule, icon: Calendar, color: 'blue' }, { id: 'exams', label: t.examsSchedule, icon: Clock, color: 'orange' }, { id: 'plan', label: t.plan, icon: FileText, color: 'purple' }, { id: 'results', label: t.results, icon: Check, color: 'green' }, { id: 'absences', label: t.absences, icon: Ban, color: 'red' }, { id: 'record', label: t.academicRecord, icon: ScrollText, color: 'gold' }];
+            return (
+                <div className="p-4 space-y-4 animate-fade-in"><h2 className="font-bold text-lg text-gray-800 dark:text-white border-r-4 border-primary pr-2">{t.academicServices}</h2><div className="grid grid-cols-2 gap-4">{academicServices.map(s => (<ActionCard key={s.id} icon={<s.icon size={24}/>} title={s.label} onClick={() => setSubView(s.id)} color={s.color} />))}</div></div>
+            );
+        };
+
+        const RegistrationMainView = ({ setSubView, t }) => {
+            // تم تغيير id من 'reg-steps' إلى 'addDrop' للدخول المباشر
+            const regServices = [{ id: 'offered-courses', label: t.offeredCourses, icon: Layers, color: 'blue' }, { id: 'addDrop', label: t.electronicReg, icon: RefreshCw, color: 'green' }, { id: 'dept-add', label: t.addCourse, icon: PlusCircle, color: 'purple' }, { id: 'dept-change', label: t.changeSection, icon: RefreshCw, color: 'orange' }, { id: 'dept-drop', label: t.dropCourse, icon: MinusCircle, color: 'red' }, { id: 'reg-requests', label: t.regRequests, icon: FileCheck, color: 'gold' }, { id: 'withdraw', label: t.withdrawCourse, icon: LogOut, color: 'gray' }];
+            return (
+                <div className="p-4 space-y-4 animate-fade-in"><h2 className="font-bold text-lg text-gray-800 dark:text-white border-r-4 border-primary pr-2">{t.regServices}</h2><div className="grid grid-cols-2 gap-4">{regServices.map(s => (<ActionCard key={s.id} icon={<s.icon size={24}/>} title={s.label} onClick={() => setSubView(s.id)} color={s.color} />))}</div></div>
+            );
+        };
+
+        const RequestsMainView = ({ setSubView, t }) => {
+            const requestServices = [{ id: 'academic-action-new', label: t.academicAction, icon: PlusCircle, color: 'red' }, { id: 'academic-action-view', label: t.viewActions, icon: FileCheck, color: 'blue' }, { id: 'major-change-new', label: t.changeMajor, icon: RefreshCw, color: 'purple' }, { id: 'major-change-view', label: t.viewMajorRequests, icon: Layers, color: 'green' }];
+            return (
+                <div className="p-4 space-y-4 animate-fade-in"><h2 className="font-bold text-lg text-gray-800 dark:text-white border-r-4 border-primary pr-2">{t.generalRequests}</h2><div className="grid grid-cols-2 gap-4">{requestServices.map(s => (<ActionCard key={s.id} icon={<s.icon size={24}/>} title={s.label} onClick={() => setSubView(s.id)} color={s.color} />))}</div></div>
+            );
+        };
+
+        const PersonalMainView = ({ setSubView, t }) => {
+            const personalServices = [{ id: 'finance', label: t.financeRecord, icon: Wallet, color: 'green' }, { id: 'rewards', label: t.rewardsRecord, icon: Gift, color: 'gold' }, { id: 'docs', label: t.docs, icon: ScrollText, color: 'blue' }, { id: 'penalties', label: t.penalties, icon: ShieldAlert, color: 'red' }, { id: 'id-photo', label: t.idPhoto, icon: ImageIcon, color: 'purple' }, { id: 'user-account', label: t.accountSettings, icon: Lock, color: 'gray' }];
+            return (
+                <div className="p-4 space-y-4 animate-fade-in"><h2 className="font-bold text-lg text-gray-800 dark:text-white border-r-4 border-primary pr-2">{t.profileFinance}</h2><div className="grid grid-cols-2 gap-4">{personalServices.map(s => (<ActionCard key={s.id} icon={<s.icon size={24}/>} title={s.label} onClick={() => setSubView(s.id)} color={s.color} />))}</div></div>
+            );
+        };
+        
+        // ---------------------------------------------
+        
+        const HomeView = ({ t, setSubView, lang }) => {
+            const upcomingExams = [{ subject: "التحليل الكيميائي", date: "2024-05-15", time: "09:00", room: "109/ق6", daysLeft: 2 }, { subject: "الإحصاء العملي", date: "2024-05-20", time: "10:30", room: "معمل 2", daysLeft: 7 }];
+            const attendanceData = [{ name: 'برمجة متقدمة', absencePct: 0 }, { name: 'تحليل كيميائي', absencePct: 12 }, { name: 'فيزياء عامة', absencePct: 16 }];
+            
+            // حساب الساعات المتبقية
+            const remainingHours = studentData.totalHours - studentData.completedHours - studentData.currentHours;
+            const completionPercentage = Math.round(((studentData.completedHours + studentData.currentHours) / studentData.totalHours) * 100);
+
+            return (
+                <div className="p-4 space-y-6 animate-fade-in pb-20">
+                    {/* Welcome Section */}
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{t.welcome}, {lang === 'ar' ? studentData.name.split(' ')[0] : studentData.nameEn.split(' ')[0]}!</h1>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{lang === 'ar' ? 'نتمنى لك يوماً دراسياً موفقاً' : 'Have a successful academic day'}</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 className={`text-sm font-bold text-gray-400 uppercase mb-3 tracking-wider flex items-center gap-2 ${lang === 'ar' ? 'pr-2' : 'pl-2'}`}>{t.quickActions}</h3>
+                        <div className="grid grid-cols-3 gap-3">
+                            <ActionCard icon={<Calendar size={24}/>} title={t.schedule} onClick={() => setSubView('schedule')} />
+                            <ActionCard icon={<RefreshCw size={24}/>} title={t.addDrop} onClick={() => setSubView('addDrop')} color="blue" />
+                            <ActionCard icon={<FileText size={24}/>} title={t.results} onClick={() => setSubView('results')} color="gold" />
+                        </div>
+                    </div>
+                    
+                    {/* New Design GPA Card (Compact & Swapped Layout) */}
+                    <div className="bg-[#1a5f6a] rounded-3xl p-5 text-white shadow-xl relative overflow-hidden">
+                        {/* Top Section */}
+                        <div className="flex justify-between items-center mb-4">
+                             
+                             {/* GPA Section (Right in RTL - First Child) */}
+                             <div className={`text-${lang === 'ar' ? 'right' : 'left'} flex flex-col items-start`}>
+                                <div className="mb-1">
+                                    <span className="bg-[#2d6a76]/50 px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 border border-white/10 text-white shadow-sm">
+                                        <TrendingUp size={12} className="text-[#d4b98c]" />
+                                        {t.statusRegular}
+                                    </span>
+                                </div>
+                                <h2 className="text-6xl font-bold tracking-tighter leading-none mb-1">{studentData.gpa}</h2>
+                                <p className="text-gray-200 text-sm font-medium">{t.gpa}</p>
+                             </div>
+
+                             {/* Total Hours Box (Left in RTL - Second Child) */}
+                             <div className="bg-white/10 rounded-2xl p-3 w-28 text-center backdrop-blur-sm border border-white/5 flex flex-col justify-center h-24">
+                                <span className="block text-3xl font-bold text-[#d4b98c] mb-1">{studentData.totalHours}</span>
+                                <span className="text-[10px] text-gray-200 font-medium">{t.totalHours}</span>
+                             </div>
+                        </div>
+
+                        {/* Progress Label */}
+                        <div className="flex justify-between text-xs mb-2 font-bold px-1 mt-2">
+                            <span className="text-white">{completionPercentage}%</span>
+                            <span className="text-gray-200">{t.progress}</span>
+                        </div>
+
+                        {/* Progress Bar Container */}
+                        <div className="h-3 bg-[#12424b] rounded-full overflow-hidden flex w-full mb-5 shadow-inner">
+                             {/* Completed - Changed to Green (emerald-400) */}
+                             <div className="bg-emerald-400 h-full" style={{ width: `${(studentData.completedHours / studentData.totalHours) * 100}%` }}></div>
+                             {/* Current - Gold */}
+                             <div className="bg-[#d4b98c] h-full" style={{ width: `${(studentData.currentHours / studentData.totalHours) * 100}%` }}></div>
+                        </div>
+
+                        {/* Bottom Stats Grid - Reordered: Completed First (Right in RTL), Current, Remaining */}
+                        <div className="grid grid-cols-3 gap-3">
+                             {/* Completed - Moved to First (Right in RTL) & Green Dot updated */}
+                             <div className="bg-emerald-600 rounded-xl py-2 px-1 text-center border border-white/5 shadow-sm">
+                                <div className="flex items-center justify-center gap-1.5 mb-1 opacity-100">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                                    <span className="text-[10px] text-white font-bold">{t.hoursCompleted}</span>
+                                </div>
+                                <span className="text-xl font-bold text-white tracking-tight">{studentData.completedHours}</span>
+                             </div>
+
+                             {/* Current */}
+                             <div className="bg-[#26626c] rounded-xl py-2 px-1 text-center border border-white/5 shadow-sm">
+                                <div className="flex items-center justify-center gap-1.5 mb-1 opacity-90">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#d4b98c]"></div>
+                                    <span className="text-[10px] text-[#d4b98c] font-bold">{t.hoursCurrent}</span>
+                                </div>
+                                <span className="text-xl font-bold text-[#d4b98c] tracking-tight">{studentData.currentHours}</span>
+                             </div>
+
+                             {/* Remaining */}
+                             <div className="bg-[#154c55] rounded-xl py-2 px-1 text-center border border-white/5 shadow-sm">
+                                <div className="flex items-center justify-center gap-1.5 mb-1 opacity-80">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-400"></div>
+                                    <span className="text-[10px] text-white font-bold">{t.hoursRemaining}</span>
+                                </div>
+                                <span className="text-xl font-bold text-white tracking-tight">{remainingHours}</span>
+                             </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-full min-h-[200px]">
+                        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50"><h3 className="font-bold text-primary flex items-center gap-2 text-sm"><Clock size={16}/> {t.todaysLectures}</h3></div>
+                        <div className="p-4 space-y-4 flex-1 overflow-y-auto"><div className="bg-teal-50 p-3 rounded-xl border border-teal-100 w-full"><h4 className="font-bold text-primary text-sm">تحليل كيميائي</h4><p className="text-xs text-gray-600 mt-1">معمل 3 • الآن</p></div></div>
+                    </div>
+
+                    {/* Absences Section Updated with Explicit Threshold Markers */}
+                    <div className="bg-white dark:bg-dark-card p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                                <span className="w-1 h-5 bg-red-500 rounded-full"></span>
+                                {t.attendance}
+                            </h3>
+                            <button onClick={() => setSubView('absences')} className="text-xs text-primary font-bold hover:underline">عرض التفاصيل</button>
+                        </div>
+                        <div className="space-y-6">
+                            {attendanceData.map((item, i) => {
+                                // Assuming max bar is 25% for visualization
+                                const progressPercent = Math.min((item.absencePct / 25) * 100, 100);
+                                const pct15 = (15 / 25) * 100; // Position of 15% marker
+                                const pct25 = 100; // Position of 25% marker
+
+                                let statusColor = "bg-green-500";
+                                let message = "";
+                                let messageColor = "text-green-600";
+                                
+                                if (item.absencePct === 0) {
+                                    statusColor = "bg-emerald-500";
+                                    message = "ممتاز! واصل إبداعك والتزامك 🌟";
+                                    messageColor = "text-emerald-600";
+                                } else if (item.absencePct < 10) {
+                                    statusColor = "bg-green-500";
+                                    message = "وضعك بالسليم، حافظ على حضورك 👍";
+                                    messageColor = "text-green-600";
+                                } else if (item.absencePct >= 10 && item.absencePct < 15) {
+                                    statusColor = "bg-yellow-500";
+                                    message = "انتبه! بدأت تدخل مرحلة الخطر ⚠️";
+                                    messageColor = "text-yellow-600";
+                                } else if (item.absencePct >= 15) {
+                                    statusColor = "bg-red-600";
+                                    message = "حرمان (DN) - تجاوزت الحد المسموح 🚨";
+                                    messageColor = "text-red-600 font-black bg-red-50";
+                                }
+
+                                return (
+                                    <div key={i} className={`bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border ${item.absencePct >= 15 ? 'border-red-200 dark:border-red-900 ring-1 ring-red-100' : 'border-gray-100 dark:border-gray-700'}`}>
+                                         <div className="flex justify-between items-center mb-3">
+                                            <span className="font-bold text-sm text-gray-800 dark:text-white">{item.name}</span>
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${item.absencePct >= 15 ? 'bg-red-100 text-red-600 animate-pulse' : (item.absencePct > 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-600')}`}>
+                                                {item.absencePct}%
+                                            </span>
+                                         </div>
+                                         
+                                         {/* Progress Bar Container */}
+                                         <div className="relative w-full h-8 mb-2">
+                                            {/* Track */}
+                                            <div className="absolute top-3 w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                                 <div className={`h-full transition-all duration-1000 ${statusColor}`} style={{ width: `${progressPercent}%` }}></div>
+                                            </div>
+
+                                            {/* Threshold Marker: 15% */}
+                                            <div className="absolute top-0 bottom-0 flex flex-col items-center z-10" style={{ right: `${pct15}%`, transform: 'translateX(50%)' }}>
+                                                <div className="h-full w-px bg-yellow-400/50 border-r border-dashed border-yellow-600"></div>
+                                                <span className="absolute -top-1 text-[9px] font-bold text-yellow-600 bg-yellow-50 px-1 rounded border border-yellow-200">15%</span>
+                                            </div>
+
+                                            {/* Threshold Marker: 25% */}
+                                            <div className="absolute top-0 bottom-0 flex flex-col items-center z-10" style={{ right: `99%`, transform: 'translateX(50%)' }}>
+                                                 <div className="h-full w-px bg-red-400/50 border-r border-dashed border-red-600"></div>
+                                                <span className="absolute -top-1 text-[9px] font-bold text-red-600 bg-red-50 px-1 rounded border border-red-200">25%</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Message */}
+                                        <div className={`text-[10px] font-bold ${messageColor} bg-white dark:bg-dark-card/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-1 mt-2`}>
+                                            {item.absencePct === 0 ? <Award size={12}/> : (item.absencePct >= 15 ? <Ban size={12}/> : <CheckCircle2 size={12}/>)}
+                                            {message}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-dark-card p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2"><span className="w-1 h-5 bg-primary rounded-full"></span>{t.upcomingExams}</h3></div>
+                        <div className="space-y-3">{upcomingExams.map((exam, i) => (<div key={i} className="flex gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700"><div className="flex-1 py-0.5"><h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm">{exam.subject}</h4><div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400"><span className="flex items-center gap-1"><Clock size={12}/> {exam.time}</span></div></div></div>))}</div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [mainTab, setMainTab] = useState('home');
+            const [subView, setSubView] = useState(null); 
+            const [darkMode, setDarkMode] = useState(false);
+            const [showChat, setShowChat] = useState(false);
+            const [lang, setLang] = useState('ar');
+            
+            useEffect(() => { 
+                document.documentElement.classList.toggle('dark', darkMode); 
+            }, [darkMode]);
+
+            useEffect(() => {
+                document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+                document.documentElement.lang = lang;
+            }, [lang]);
+
+            const t = translations[lang];
+            const goHome = () => { setSubView(null); };
+
+            const renderMainTab = (tab) => {
+                switch(tab) {
+                    case 'academic': return <AcademicMainView setSubView={setSubView} t={t} />;
+                    case 'reg': return <RegistrationMainView setSubView={setSubView} t={t} />;
+                    case 'requests': return <RequestsMainView setSubView={setSubView} t={t} />;
+                    case 'personal': return <PersonalMainView setSubView={setSubView} t={t} />;
+                    case 'home':
+                    default: return <HomeView t={t} setSubView={setSubView} lang={lang} />;
+                }
+            };
+            
+            const renderContent = () => {
+                // Pass lang to NotificationsPage to handle text alignment if needed, though simple RTL switch does most work
+                if (subView) {
+                    switch(subView) {
+                        case 'notifications': return <NotificationsPage onBack={goHome} />;
+                        // ... other cases passed t={t} or lang={lang} as needed
+                        case 'schedule': return <SchedulePage onBack={goHome} t={t} />;
+                        case 'results': return <ResultsPage onBack={goHome} t={t} />;
+                        case 'plan': return <PlanPage onBack={goHome} t={t} />;
+                        case 'exams': return <ExamsPage onBack={goHome} t={t} />;
+                        case 'absences': return <AbsencesPage onBack={goHome} t={t} />;
+                        case 'record': return <AcademicRecordPage onBack={goHome} t={t} />;
+                        
+                        // Registration Flow
+                        // تم تعديل الرابط للعودة للصفحة الرئيسية بدلاً من خطوات التسجيل
+                        case 'reg-steps': return <RegistrationStepsPage onBack={goHome} onStart={() => setSubView('addDrop')} />;
+                        case 'addDrop': return <AddDropPage onBack={goHome} t={t} />;
+                        
+                        case 'offered-courses': return <OfferedCoursesPage onBack={goHome} t={t} />;
+                        case 'dept-add': return <DepartmentRequestPage onBack={goHome} type="add" t={t} />;
+                        case 'dept-change': return <DepartmentRequestPage onBack={goHome} type="change" t={t} />;
+                        case 'dept-drop': return <DepartmentRequestPage onBack={goHome} type="drop" t={t} />;
+                        case 'reg-requests': return <RegistrationRequestsPage onBack={goHome} t={t} />;
+                        case 'academic-action-new': return <NewAcademicActionPage onBack={goHome} t={t} />;
+                        case 'academic-action-view': return <ViewAcademicActionsPage onBack={goHome} t={t} />;
+                        case 'major-change-new': return <MajorChangeRequestPage onBack={goHome} t={t} />;
+                        case 'major-change-view': return <ViewMajorChangeRequestsPage onBack={goHome} t={t} />;
+                        case 'withdraw': return <WithdrawPage onBack={goHome} t={t} />;
+                        case 'id-photo': return <PersonalPage onBack={goHome} activeView="id-photo" t={t} />;
+                        case 'finance': return <PersonalPage onBack={goHome} activeView="finance" t={t} />;
+                        case 'rewards': return <PersonalPage onBack={goHome} activeView="rewards" t={t} />;
+                        case 'penalties': return <PersonalPage onBack={goHome} activeView="penalties" t={t} />;
+                        case 'allowances': return <PersonalPage onBack={goHome} activeView="allowances" t={t} />;
+                        case 'docs': return <PersonalPage onBack={goHome} activeView="docs" t={t} />;
+                        case 'user-account': return <UserAccountPage onBack={goHome} t={t} />;
+                        default: return <div className="p-4 text-center py-20 text-gray-500">Service Not Found</div>;
+                    }
+                }
+                return renderMainTab(mainTab);
+            };
+
+            // Header title logic
+            let headerTitle = t.mainTitle;
+            if (subView) {
+                if (subView === 'reg-steps') headerTitle = t.regSteps;
+                else if (subView === 'notifications') headerTitle = t.notifications;
+                else if (subView === 'academic-action-new') headerTitle = t.academicAction;
+                // Add more mappings if needed for specific keys that don't match subView name exactly in translations
+                // Fallback:
+                else if (t[subView]) headerTitle = t[subView];
+                else headerTitle = t.moreServices;
+            }
+
+            return (
+                <div className="min-h-screen relative flex flex-col">
+                    <MobileHeader 
+                        title={headerTitle} 
+                        showBack={!!subView} 
+                        onBack={goHome} 
+                        onProfile={() => {setMainTab('personal'); setSubView('user-account');}} 
+                        onNotifications={() => setSubView('notifications')} 
+                        t={t} 
+                        darkMode={darkMode}
+                        toggleDarkMode={() => setDarkMode(!darkMode)}
+                        lang={lang}
+                        toggleLang={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+                    />
+                    <main className="flex-1 w-full overflow-y-auto pb-16">{renderContent()}</main>
+                    
+                    {/* Chatbot Button */}
+                    <button 
+                        onClick={() => setShowChat(!showChat)}
+                        className="fixed bottom-20 left-4 z-50 p-4 bg-gradient-to-tr from-primary to-teal-400 text-white rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-transform group"
+                    >
+                        <Bot size={28} className={showChat ? 'scale-0 opacity-0 absolute transition-all' : 'scale-100 opacity-100 transition-all'}/>
+                        <X size={28} className={!showChat ? 'scale-0 opacity-0 absolute transition-all' : 'scale-100 opacity-100 transition-all'}/>
+                    </button>
+                    
+                    <ChatbotWidget isOpen={showChat} onClose={() => setShowChat(false)} />
+                    
+                    <BottomNavBar mainTab={mainTab} setMainTab={(tab) => { setMainTab(tab); goHome(); }} t={t} />
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
