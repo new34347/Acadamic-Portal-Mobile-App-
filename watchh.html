@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابتي - نسخة الساعة الذكية</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { DEFAULT: '#006771', dark: '#004d55', light: '#008c99' },
+                        gold: { DEFAULT: '#B18E51' },
+                        dark: { bg: '#0f172a', card: '#1e293b', text: '#f1f5f9' },
+                        watch: { black: '#000000', bezel: '#262626', strap: '#004d55' },
+                        ac: { lecture: '#3b82f6', exam: '#8b5cf6', absence: '#f97316', general: '#10b981' }
+                    },
+                    fontFamily: { sans: ['IBM Plex Sans Arabic', 'sans-serif'] },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'fade-in': 'fadeIn 0.2s ease-out forwards',
+                        'slide-up': 'slideUp 0.3s ease-out forwards',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'IBM Plex Sans Arabic', sans-serif; background-color: #f0f2f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        /* Hide Scrollbar for Watch Feel */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Watch Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        /* Glass Effect */
+        .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
+
+    <!-- Import Map -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+      }
+    }
+    </script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-200 selection:bg-primary selection:text-white">
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            Bell, Clock, Calendar, CheckCircle2, AlertTriangle, 
+            X, ChevronRight, MapPin, BookOpen, GraduationCap, 
+            Activity, Battery, Wifi, ChevronUp, Plus, Trash2, Power, RotateCcw, Pencil, AlertCircle, LayoutGrid
+        } from 'lucide-react';
+
+        // --- Initial Mock Data ---
+        const initialNotifications = [
+            // Lectures
+            { id: 1, type: 'lecture', title: 'فيزياء عامة 101', time: '10:30 ص', loc: 'قاعة 302', urgent: false, attended: false },
+            { id: 2, type: 'lecture', title: 'مقدمة في البرمجة', time: '01:00 م', loc: 'معمل الحاسب', urgent: false, attended: false },
+            
+            // Exams
+            { id: 3, type: 'exam', title: 'اختبار نصفي: رياضيات', time: 'الأحد القادم', loc: 'قاعة الاختبارات', urgent: true, attended: false },
+            { id: 4, type: 'exam', title: 'مشروع التخرج', time: 'بعد أسبوعين', loc: 'المسرح', urgent: true, attended: false },
+            
+            // Absences
+            // Added percentage field specifically for absence logic
+            { id: 5, type: 'absence', title: 'إنذار حرمان: فيزياء', time: 'تجاوز الحد المسموح', loc: 'شؤون الطلاب', urgent: true, attended: false, percentage: 15 },
+            { id: 6, type: 'absence', title: 'تنبيه غياب: علم الإحصاء', time: 'غياب محاضرتين', loc: '-', urgent: false, attended: false, percentage: 6 },
+            
+            // General Notifications
+            { id: 7, type: 'general', title: 'تذكير: تسليم الواجب', time: 'غداً 11:59 م', loc: 'البلاك بورد', urgent: false, attended: false },
+            { id: 8, type: 'general', title: 'فعالية النادي الطلابي', time: 'اليوم 04:00 م', loc: 'الساحة', urgent: false, attended: false },
+        ];
+
+        // --- Components ---
+
+        // 1. Watch Status Bar
+        const StatusBar = () => {
+            const [time, setTime] = useState(new Date());
+            useEffect(() => {
+                const timer = setInterval(() => setTime(new Date()), 60000);
+                return () => clearInterval(timer);
+            }, []);
+            
+            return (
+                <div className="flex justify-between items-center px-4 py-1 text-[10px] text-gray-400 font-medium z-20 relative select-none">
+                    <span className="font-mono">{time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                    <div className="flex gap-1.5">
+                        <Wifi size={10} />
+                        <Battery size={10} className="text-green-500"/>
+                    </div>
+                </div>
+            );
+        };
+
+        // 2. Watch Face (Home Screen)
+        const WatchFace = ({ onOpenMenu, nextEvent }) => {
+            const [time, setTime] = useState(new Date());
+            useEffect(() => {
+                const timer = setInterval(() => setTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            return (
+                <div className="h-full flex flex-col items-center justify-between py-6 relative overflow-hidden animate-fade-in bg-gradient-to-b from-gray-900 to-black select-none">
+                    <div className="absolute top-0 w-full h-1/2 bg-primary/10 blur-3xl rounded-full"></div>
+
+                    <div className="text-center z-10 mt-4 cursor-default">
+                        <div className="text-gold text-[10px] font-bold tracking-widest uppercase mb-1">
+                             {new Intl.DateTimeFormat('ar-EG', { weekday: 'long', day: 'numeric' }).format(time)}
+                        </div>
+                        <div className="text-7xl font-bold text-white font-mono leading-none tracking-tighter">
+                            {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </div>
+                        <div className="text-primary text-xs font-medium mt-1">بوابتي</div>
+                    </div>
+
+                    <div className="w-full px-4 z-10">
+                        {nextEvent ? (
+                            <div className="glass rounded-2xl p-3 relative overflow-hidden group cursor-pointer active:scale-95 transition-transform" onClick={onOpenMenu}>
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <div className="flex items-center gap-1 text-[10px] text-primary font-bold mb-0.5">
+                                            <Clock size={10} />
+                                            <span>الحدث القادم</span>
+                                        </div>
+                                        <h3 className="text-white font-bold text-sm truncate w-32">{nextEvent.title}</h3>
+                                        <p className="text-gray-400 text-[10px] mt-0.5">{nextEvent.time} • {nextEvent.loc}</p>
+                                    </div>
+                                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary animate-pulse-slow">
+                                        <Bell size={14} />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="glass rounded-2xl p-3 text-center cursor-pointer active:scale-95" onClick={onOpenMenu}>
+                                <p className="text-gray-400 text-xs">لا توجد أحداث قادمة</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <button onClick={onOpenMenu} className="flex flex-col items-center gap-1 text-gray-500 animate-bounce active:text-white transition-colors">
+                        <ChevronUp size={16} />
+                        <span className="text-[9px]">القائمة</span>
+                    </button>
+                </div>
+            );
+        };
+
+        // 3. NEW Main Menu (Grid)
+        const MainMenu = ({ onSelectCategory }) => {
+            const menuItems = [
+                { id: 'lecture', label: 'محاضراتي', icon: BookOpen, color: 'bg-blue-600', count: 0 },
+                { id: 'exam', label: 'اختبارات', icon: GraduationCap, color: 'bg-purple-600', count: 0 },
+                { id: 'absence', label: 'الغيابات', icon: AlertTriangle, color: 'bg-orange-600', count: 0 },
+                { id: 'general', label: 'إشعارات', icon: Bell, color: 'bg-emerald-600', count: 0 },
+            ];
+
+            return (
+                <div className="h-full bg-black flex flex-col p-4 animate-slide-up">
+                    <h2 className="text-white font-bold text-center mb-4 text-sm">القائمة الرئيسية</h2>
+                    <div className="grid grid-cols-2 gap-3 flex-1">
+                        {menuItems.map(item => (
+                            <button 
+                                key={item.id}
+                                onClick={() => onSelectCategory(item.id)}
+                                className={`flex flex-col items-center justify-center gap-2 rounded-2xl ${item.color}/10 border border-${item.color}/20 hover:bg-${item.color}/20 active:scale-95 transition-all group`}
+                            >
+                                <div className={`w-10 h-10 rounded-full ${item.color} flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
+                                    <item.icon size={20} />
+                                </div>
+                                <span className="text-gray-200 text-xs font-medium">{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // 4. Updated Notification List
+        const NotificationList = ({ notifications, filterType, onSelect, onBack, onAdd, onDelete, onEdit }) => {
+            // Mapping filters to readable titles and colors
+            const headers = {
+                'lecture': { title: 'محاضرات اليوم', icon: BookOpen, color: 'bg-blue-600' },
+                'exam': { title: 'الاختبارات القادمة', icon: GraduationCap, color: 'bg-purple-600' },
+                'absence': { title: 'سجل الغياب', icon: AlertTriangle, color: 'bg-orange-600' },
+                'general': { title: 'الإشعارات', icon: Bell, color: 'bg-emerald-600' },
+                'all': { title: 'الكل', icon: LayoutGrid, color: 'bg-gray-600' }
+            };
+
+            const activeHeader = headers[filterType] || headers['all'];
+            const filteredList = filterType === 'all' ? notifications : notifications.filter(n => n.type === filterType);
+
+            return (
+                <div className="h-full bg-black flex flex-col animate-fade-in">
+                    <div className="px-4 py-3 flex items-center justify-between border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-10">
+                        <div className="flex items-center gap-2">
+                            <button onClick={onBack} className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:text-white">
+                                <ChevronRight size={14} />
+                            </button>
+                            <h2 className="text-white font-bold text-sm flex items-center gap-2">
+                                {activeHeader.title}
+                            </h2>
+                        </div>
+                        {/* Only show Add button for general notifications to keep it realistic */}
+                        {filterType === 'general' && (
+                            <button onClick={onAdd} className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-primary hover:bg-gray-700 active:bg-primary active:text-white transition-colors">
+                                <Plus size={14} />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2 hide-scrollbar pb-10">
+                        {filteredList.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-2">
+                                <activeHeader.icon size={24} className="opacity-20"/>
+                                <p className="text-xs">لا توجد بيانات</p>
+                            </div>
+                        ) : (
+                            filteredList.map(notif => (
+                                <div 
+                                    key={notif.id} 
+                                    onClick={() => onSelect(notif)}
+                                    className={`p-3 rounded-2xl border transition-all active:scale-[0.98] cursor-pointer flex justify-between items-stretch gap-3 ${notif.attended ? 'opacity-60 grayscale bg-gray-900 border-gray-800' : notif.urgent ? 'bg-red-900/10 border-red-900/30' : 'bg-gray-800/40 border-gray-700/30'}`}
+                                >
+                                    <div className="flex-1 flex flex-col justify-between">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <div className={`p-1.5 rounded-lg ${notif.urgent ? 'bg-red-500' : (notif.attended ? 'bg-gray-600' : activeHeader.color)} text-white`}>
+                                                {notif.attended ? <CheckCircle2 size={12}/> : (notif.type === 'lecture' ? <BookOpen size={12}/> : notif.type === 'exam' ? <Activity size={12}/> : notif.type === 'absence' ? <AlertTriangle size={12} /> : <Bell size={12}/>)}
+                                            </div>
+                                            <span className="text-[10px] text-gray-400 font-mono">{notif.time}</span>
+                                        </div>
+                                        <div>
+                                            <h4 className={`text-gray-100 font-bold text-sm leading-tight ${notif.attended ? 'line-through decoration-white/50' : ''}`}>{notif.title}</h4>
+                                            <div className="flex items-center gap-1 text-[10px] text-gray-500 mt-1 truncate">
+                                                <MapPin size={10}/> {notif.loc}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex flex-col justify-center gap-2 border-r border-gray-700 pr-2 mr-[-4px]">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onEdit(notif); }}
+                                            className="w-7 h-7 flex items-center justify-center bg-blue-500/10 text-blue-400 rounded-full hover:bg-blue-500 hover:text-white transition-colors"
+                                        >
+                                            <Pencil size={12}/>
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onDelete(notif.id); }}
+                                            className="w-7 h-7 flex items-center justify-center bg-red-500/10 text-red-400 rounded-full hover:bg-red-500 hover:text-white transition-colors"
+                                        >
+                                            <Trash2 size={12}/>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                        <div className="h-4"></div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 5. Add/Edit Reminder Screen
+        const AddEditReminder = ({ onSave, onCancel, initialData }) => {
+            const [text, setText] = useState(initialData ? initialData.title : '');
+            const presets = ['تسليم واجب', 'مذاكرة جماعية', 'مقابلة مرشد', 'شراء قهوة'];
+            const isEdit = !!initialData;
+
+            return (
+                <div className="h-full bg-black flex flex-col p-4 animate-fade-in">
+                    <h3 className="text-white font-bold text-sm mb-3 text-center">
+                        {isEdit ? 'تعديل' : 'إضافة تنبيه'}
+                    </h3>
+                    <input 
+                        type="text" 
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        placeholder="العنوان..."
+                        className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-3 text-white text-sm mb-3 focus:border-primary outline-none placeholder-gray-600 text-right"
+                        autoFocus
+                    />
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {presets.map(p => (
+                            <button key={p} onClick={() => setText(p)} className="bg-gray-800 text-gray-300 text-[10px] px-2 py-1 rounded-full border border-gray-700 hover:bg-gray-700 active:bg-primary active:text-white active:border-primary transition-colors">
+                                {p}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="mt-auto space-y-2">
+                        <button 
+                            onClick={() => onSave(text, initialData?.id)} 
+                            disabled={!text.trim()}
+                            className="w-full py-2.5 bg-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-full text-white text-xs font-bold active:scale-95 transition"
+                        >
+                            حفظ
+                        </button>
+                        <button onClick={onCancel} className="w-full py-2.5 bg-gray-800 rounded-full text-gray-300 text-xs font-bold active:scale-95 transition">
+                            إلغاء
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // 6. Notification Detail
+        const NotificationDetail = ({ notif, onBack, onToggleAttend, onEdit }) => {
+            // Helper to get icon/color based on type
+            const getTypeDetails = (type) => {
+                 switch(type) {
+                     case 'lecture': return { icon: BookOpen, color: 'bg-blue-600', label: 'محاضرة' };
+                     case 'exam': return { icon: GraduationCap, color: 'bg-purple-600', label: 'اختبار' };
+                     case 'absence': return { icon: AlertTriangle, color: 'bg-orange-600', label: 'إنذار غياب' };
+                     default: return { icon: Bell, color: 'bg-emerald-600', label: 'تنبيه' };
+                 }
+            }
+            const details = getTypeDetails(notif.type);
+            const Icon = details.icon;
+
+            // Absence Bar Logic
+            const renderAbsenceBar = () => {
+                if (notif.type !== 'absence' || notif.percentage === undefined) return null;
+                
+                const limit = 15;
+                const current = notif.percentage;
+                // Calculate width relative to 15% being "full" (100% of the bar)
+                // We clamp it to 100% if it exceeds 15
+                const widthPercent = Math.min((current / limit) * 100, 100);
+                
+                // Color logic: Red if at limit, Orange if close (>10%), Yellow if warning (>5%), Green otherwise
+                let barColor = 'bg-emerald-500';
+                if (current >= limit) barColor = 'bg-red-500';
+                else if (current >= 10) barColor = 'bg-orange-500';
+                else if (current >= 5) barColor = 'bg-yellow-500';
+
+                return (
+                    <div className="w-full bg-gray-900 rounded-xl p-3 mb-4 border border-gray-800 text-right">
+                        <div className="flex justify-between items-end mb-2">
+                            <span className="text-[10px] text-gray-400">حد الحرمان (15%)</span>
+                            <span className={`text-sm font-bold ${current >= limit ? 'text-red-500' : 'text-white'}`}>
+                                {current}% <span className="text-[10px] text-gray-500 font-normal">الحالية</span>
+                            </span>
+                        </div>
+                        
+                        {/* The Bar Track */}
+                        <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden relative">
+                            {/* Grid lines for visual aid (optional) */}
+                            <div className="absolute top-0 bottom-0 left-1/3 w-0.5 bg-gray-600/30"></div>
+                            <div className="absolute top-0 bottom-0 left-2/3 w-0.5 bg-gray-600/30"></div>
+                            
+                            {/* The Fill */}
+                            <div 
+                                className={`h-full ${barColor} transition-all duration-1000 ease-out relative`} 
+                                style={{ width: `${widthPercent}%` }}
+                            >
+                                {/* Glow effect at the tip */}
+                                <div className="absolute right-0 top-0 bottom-0 w-1 bg-white/50 shadow-[0_0_10px_rgba(255,255,255,0.8)]"></div>
+                            </div>
+                        </div>
+
+                        {current >= limit ? (
+                            <p className="text-[10px] text-red-400 mt-2 font-medium flex items-center justify-end gap-1">
+                                <AlertTriangle size={10} />
+                                تم تجاوز نسبة الحرمان!
+                            </p>
+                        ) : (
+                            <p className="text-[10px] text-gray-500 mt-2">
+                                متبقي {limit - current}% للوصول للحرمان
+                            </p>
+                        )}
+                    </div>
+                );
+            };
+
+            return (
+                <div className="h-full bg-black flex flex-col relative animate-fade-in">
+                    <div className={`h-1/3 relative flex items-center justify-center ${notif.attended ? 'bg-gray-800' : 'bg-gray-900'}`}>
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black"></div>
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl z-10 transition-colors ${notif.attended ? 'bg-gray-600 text-gray-300' : (notif.urgent ? 'bg-red-500 text-white' : `${details.color} text-white`)}`}>
+                            {notif.attended ? <CheckCircle2 size={32}/> : <Icon size={32}/>}
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 px-4 pt-2 text-center overflow-y-auto hide-scrollbar">
+                        <div className={`inline-block px-2 py-0.5 rounded-full border border-gray-700 text-[10px] mb-2 font-bold bg-gray-800 text-gray-300`}>
+                            {notif.attended ? 'مكتمل' : details.label}
+                        </div>
+                        <h2 className={`text-xl font-bold text-white mb-1 leading-tight ${notif.attended ? 'line-through opacity-60' : ''}`}>{notif.title}</h2>
+                        <p className="text-gray-400 text-xs mb-4">{notif.time} • {notif.loc}</p>
+                        
+                        {/* Insert Absence Bar Here */}
+                        {renderAbsenceBar()}
+
+                        <div className="space-y-2 pb-4">
+                            <button 
+                                onClick={() => onToggleAttend(notif.id)}
+                                className={`w-full py-2.5 rounded-full text-white text-xs font-bold active:scale-95 transition shadow-lg ${notif.attended ? 'bg-gray-700 shadow-none' : 'bg-primary shadow-primary/20 hover:bg-primary/90'}`}
+                            >
+                                {notif.attended ? 'إلغاء الاكتمال' : (notif.type === 'absence' ? 'تأكيد الاطلاع' : 'تسجيل الحضور / إنجاز')}
+                            </button>
+                             <button onClick={onBack} className="w-full py-2.5 bg-gray-900 rounded-full text-gray-500 text-xs font-bold hover:bg-gray-800 active:scale-95 transition">
+                                عودة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 7. Confirmation Overlay
+        const ConfirmationOverlay = ({ message, onConfirm, onCancel }) => (
+            <div className="absolute inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-6 text-center animate-fade-in backdrop-blur-sm">
+                <div className="w-12 h-12 rounded-full bg-red-900/30 flex items-center justify-center mb-3">
+                    <Trash2 size={24} className="text-red-500" />
+                </div>
+                <p className="text-white text-sm font-bold mb-6">{message}</p>
+                <div className="flex gap-3 w-full">
+                    <button onClick={onConfirm} className="flex-1 bg-red-600 text-white py-2.5 rounded-full text-xs font-bold hover:bg-red-700 transition">حذف</button>
+                    <button onClick={onCancel} className="flex-1 bg-gray-700 text-gray-300 py-2.5 rounded-full text-xs font-bold hover:bg-gray-600 transition">إلغاء</button>
+                </div>
+            </div>
+        );
+
+        // --- Main App ---
+        const SmartWatchApp = () => {
+            // State
+            const [screen, setScreen] = useState('face'); // face, menu, list, detail, add_edit
+            const [filterType, setFilterType] = useState('all'); // lecture, exam, absence, general
+            const [notifications, setNotifications] = useState(() => {
+                const saved = localStorage.getItem('watch_notifications_v2'); // New key for new data structure
+                return saved ? JSON.parse(saved) : initialNotifications;
+            });
+            const [selectedNotif, setSelectedNotif] = useState(null);
+            const [editingNotif, setEditingNotif] = useState(null); 
+            const [isScreenOn, setIsScreenOn] = useState(true);
+            const [confirmModal, setConfirmModal] = useState(null);
+
+            // Persistence
+            useEffect(() => {
+                localStorage.setItem('watch_notifications_v2', JSON.stringify(notifications));
+            }, [notifications]);
+
+            // Handlers
+            const handleSaveNotification = (text, id) => {
+                if (!text.trim()) return;
+                
+                if (id) {
+                    setNotifications(prev => prev.map(n => 
+                        n.id === id ? { ...n, title: text } : n
+                    ));
+                    if (selectedNotif?.id === id) {
+                        setSelectedNotif(prev => ({ ...prev, title: text }));
+                    }
+                } else {
+                    const newNotif = {
+                        id: Date.now(),
+                        type: filterType === 'all' ? 'general' : filterType, // Default to current filter or general
+                        title: text,
+                        time: 'الآن',
+                        loc: 'شخصي',
+                        urgent: false,
+                        attended: false
+                    };
+                    setNotifications(prev => [newNotif, ...prev]);
+                }
+                setScreen('list');
+                setEditingNotif(null);
+            };
+
+            const requestDelete = (id) => {
+                setConfirmModal({
+                    message: 'حذف العنصر؟',
+                    onConfirm: () => {
+                        setNotifications(prev => prev.filter(n => n.id !== id));
+                        if (selectedNotif?.id === id) {
+                            setScreen('list');
+                            setSelectedNotif(null);
+                        }
+                        setConfirmModal(null);
+                    }
+                });
+            };
+
+            const handleToggleAttend = (id) => {
+                setNotifications(notifications.map(n => 
+                    n.id === id ? { ...n, attended: !n.attended } : n
+                ));
+                if (selectedNotif?.id === id) {
+                    setSelectedNotif(prev => ({ ...prev, attended: !prev.attended }));
+                }
+            };
+
+            const openEditScreen = (notif) => {
+                setEditingNotif(notif);
+                setScreen('add_edit');
+            };
+            
+            const openAddScreen = () => {
+                setEditingNotif(null);
+                setScreen('add_edit');
+            };
+
+            const handleCrownClick = () => {
+                if (!isScreenOn) {
+                    setIsScreenOn(true);
+                    return;
+                }
+                if (screen === 'face') return; 
+                setScreen('face');
+                setSelectedNotif(null);
+            };
+
+            const handleSideButtonClick = () => {
+                setIsScreenOn(!isScreenOn);
+            };
+
+            const resetData = () => {
+                setConfirmModal({
+                    message: 'هل تود استعادة البيانات الافتراضية؟',
+                    onConfirm: () => {
+                        localStorage.removeItem('watch_notifications_v2');
+                        setNotifications(initialNotifications);
+                        setScreen('face');
+                        setConfirmModal(null);
+                    }
+                });
+            };
+
+            const handleSelectCategory = (type) => {
+                setFilterType(type);
+                setScreen('list');
+            };
+
+            // Get next active event for face (priority: urgent, then earliest)
+            const nextEvent = notifications.filter(n => !n.attended).sort((a,b) => (b.urgent === a.urgent) ? 0 : b.urgent? 1 : -1)[0] || notifications[0];
+
+            return (
+                <div className="flex flex-col items-center gap-8 select-none">
+                    {/* Watch Case */}
+                    <div className="relative group">
+                        
+                        {/* Straps */}
+                        <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-24 bg-primary/80 rounded-t-[3rem] -z-10 shadow-inner">
+                            <div className="w-full h-full opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+                        </div>
+                        <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-48 h-24 bg-primary/80 rounded-b-[3rem] -z-10 shadow-inner">
+                            <div className="w-full h-full opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
+                        </div>
+
+                        {/* Watch Body */}
+                        <div className="w-[320px] h-[390px] bg-[#1a1a1a] rounded-[3.5rem] p-1.5 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] border-4 border-[#333] ring-1 ring-gray-700 relative">
+                            
+                            {/* Side Button (Interactable) */}
+                            <button 
+                                onClick={handleSideButtonClick}
+                                className="absolute right-[-10px] top-24 w-2 h-14 bg-[#333] rounded-r-lg border-l border-black cursor-pointer active:scale-95 active:bg-[#444] transition-transform"
+                                title="تشغيل/إيقاف الشاشة"
+                            ></button> 
+
+                            {/* Crown (Interactable) */}
+                            <button 
+                                onClick={handleCrownClick}
+                                className="absolute right-[-14px] top-10 w-3.5 h-8 bg-gold rounded-r-md border-l border-black shadow-sm flex items-center justify-center overflow-hidden cursor-pointer active:scale-95 hover:bg-yellow-600 transition-all z-40 group/crown" 
+                                title="الرئيسية"
+                            >
+                                <div className="w-full h-[1px] bg-black/30 mb-[1px]"></div>
+                                <div className="w-full h-[1px] bg-black/30 mb-[1px]"></div>
+                                <div className="w-full h-[1px] bg-black/30"></div>
+                            </button>
+
+                            {/* Screen Bezel */}
+                            <div className="w-full h-full bg-black rounded-[3rem] overflow-hidden border-[6px] border-black relative">
+                                
+                                {/* Black Screen Overlay (Sleep Mode) */}
+                                <div className={`absolute inset-0 bg-black z-50 pointer-events-none transition-opacity duration-300 ${isScreenOn ? 'opacity-0' : 'opacity-100'}`}></div>
+
+                                {/* The Display */}
+                                <div className="w-full h-full text-white font-sans flex flex-col relative">
+                                    <StatusBar />
+                                    
+                                    <div className="flex-1 relative overflow-hidden">
+                                        {screen === 'face' && (
+                                            <WatchFace 
+                                                onOpenMenu={() => setScreen('menu')} 
+                                                nextEvent={nextEvent} 
+                                            />
+                                        )}
+                                        {screen === 'menu' && (
+                                            <MainMenu 
+                                                onSelectCategory={handleSelectCategory} 
+                                            />
+                                        )}
+                                        {screen === 'list' && (
+                                            <NotificationList 
+                                                notifications={notifications} 
+                                                filterType={filterType}
+                                                onSelect={(n) => { setSelectedNotif(n); setScreen('detail'); }} 
+                                                onBack={() => setScreen('menu')} 
+                                                onAdd={openAddScreen}
+                                                onDelete={requestDelete}
+                                                onEdit={openEditScreen}
+                                            />
+                                        )}
+                                        {screen === 'add_edit' && (
+                                            <AddEditReminder 
+                                                onSave={handleSaveNotification}
+                                                onCancel={() => setScreen('list')}
+                                                initialData={editingNotif}
+                                            />
+                                        )}
+                                        {screen === 'detail' && selectedNotif && (
+                                            <NotificationDetail 
+                                                notif={selectedNotif} 
+                                                onBack={() => setScreen('list')} 
+                                                onToggleAttend={handleToggleAttend}
+                                                onEdit={openEditScreen}
+                                            />
+                                        )}
+                                    </div>
+
+                                    {/* Confirmation Overlay (Global) */}
+                                    {confirmModal && (
+                                        <ConfirmationOverlay 
+                                            message={confirmModal.message}
+                                            onConfirm={confirmModal.onConfirm}
+                                            onCancel={() => setConfirmModal(null)}
+                                        />
+                                    )}
+
+                                    {/* Home Indicator */}
+                                    {screen !== 'face' && (
+                                        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-white/20 rounded-full cursor-pointer z-30 hover:bg-white active:scale-95 transition-all" onClick={() => setScreen('face')}></div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="text-center text-gray-500 text-sm max-w-xs space-y-2">
+                        <div className="flex justify-center gap-4 text-[10px] text-gray-400">
+                            <div className="flex items-center gap-1"><div className="w-3 h-3 bg-gold rounded-sm"></div> التاج: الرئيسية</div>
+                            <div className="flex items-center gap-1"><div className="w-2 h-4 bg-[#333] rounded-sm"></div> الجانبي: إغلاق الشاشة</div>
+                        </div>
+                        <button onClick={resetData} className="px-3 py-1.5 bg-gray-300 text-gray-700 rounded-lg text-xs font-bold hover:bg-white transition flex items-center gap-1 mx-auto">
+                            <RotateCcw size={12}/> استعادة البيانات الأصلية
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<SmartWatchApp />);
+    </script>
+</body>
+</html>
