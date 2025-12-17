@@ -1,0 +1,489 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  BookOpen, 
+  Clock, 
+  MapPin, 
+  Calendar, 
+  AlertTriangle, 
+  Bell, 
+  CheckCircle2,
+  MoreHorizontal,
+  Building2,
+  Monitor,
+  Users,
+  FlaskConical,
+  Book,
+  Wifi,
+  Signal,
+  Target
+} from 'lucide-react';
+
+// --- مكونات واجهة المستخدم (UI Components) ---
+
+// زر التبديل بين الوضعين
+const ThemeToggle = ({ isDark, toggle }) => (
+  <button 
+    onClick={toggle}
+    className={`fixed bottom-6 right-6 z-50 px-6 py-3 rounded-full shadow-lg font-medium transition-all transform hover:scale-105 ${
+      isDark ? 'bg-white text-black' : 'bg-gray-900 text-white'
+    }`}
+  >
+    {isDark ? '☀️ الوضع الفاتح' : '🌙 الوضع الداكن'}
+  </button>
+);
+
+// --- البيانات (Data) ---
+const DATA = {
+  lectures: [
+    { 
+      id: 1, 
+      name: "هندسة البرمجيات", 
+      time: "09:00 ص", 
+      loc: "قاعة 101", 
+      color: "bg-blue-500",
+      college: "كلية الحاسبات",
+      type: "نظري",
+      mode: "حضوري"
+    },
+    { 
+      id: 2, 
+      name: "نظم تشغيل", 
+      time: "11:30 ص", 
+      loc: "معمل ب", 
+      color: "bg-indigo-500",
+      college: "كلية الحاسبات",
+      type: "عملي",
+      mode: "حضوري"
+    },
+    { 
+      id: 3, 
+      name: "ثقافة إسلامية", 
+      time: "01:00 م", 
+      loc: "المنصة", 
+      color: "bg-emerald-500",
+      college: "كلية الآداب",
+      type: "نظري",
+      mode: "عن بعد"
+    },
+  ],
+  exams: [
+    { id: 1, name: "فيزياء عامة", daysLeft: 2, date: "20 ديسمبر", time: "08:00 ص", loc: "القاعة الكبرى", color: "bg-red-500" },
+    { id: 2, name: "تفاضل وتكامل 2", daysLeft: 15, date: "5 يناير", time: "10:00 ص", loc: "قاعة 305", color: "bg-pink-500" },
+    { id: 3, name: "مقدمة في البرمجة", daysLeft: 22, date: "12 يناير", time: "01:00 م", loc: "معمل ج", color: "bg-purple-500" },
+  ],
+  absences: [
+    { name: "خوارزميات", count: 2, percentage: 5, warning: false }, // 5% آمن
+    { name: "قواعد بيانات", count: 7, percentage: 14, warning: true }, // 14% قريب من الحرمان (بدون عذر)
+    { name: "شبكات حاسب", count: 12, percentage: 24, warning: true }, // 24% خطر (بعذر)
+    { name: "أمن سيبراني", count: 0, percentage: 0, warning: false },
+  ],
+  notifications: [
+    { id: 1, title: "رصد درجة النصف فصلي", source: "نظم تشغيل", time: "منذ 15 د", important: true },
+    { id: 2, title: "تغيير قاعة المحاضرة", source: "فيزياء عامة", time: "منذ 1 س", important: true },
+    { id: 3, title: "إعلان عن ورشة عمل", source: "النادي الطلابي", time: "منذ 3 س", important: false },
+    { id: 4, title: "تذكير بتسليم الواجب", source: "تراكيب بيانات", time: "أمس", important: false },
+  ]
+};
+
+// --- محتوى الصفحات الفرعية ---
+
+const LecturesView = ({ data, themeStyles, subText, cardBg, isDark }) => (
+  <div className="h-full flex flex-col">
+    <div className="flex items-center gap-2 mb-3 px-1">
+      <div className={`p-1.5 rounded-lg ${isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+        <BookOpen size={18} />
+      </div>
+      <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>محاضرات اليوم</span>
+    </div>
+    <div className="flex flex-col gap-2.5 overflow-y-auto pr-1 custom-scrollbar flex-1">
+      {data.map((lec) => (
+        <div key={lec.id} className={`${cardBg} p-3 rounded-2xl flex flex-col gap-2 active:scale-[0.98] transition-transform`}>
+          {/* الصف العلوي: الاسم والوقت */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-1.5 h-10 rounded-full ${lec.color}`}></div>
+              <div>
+                <h3 className="text-sm font-bold">{lec.name}</h3>
+                <div className={`flex items-center gap-3 text-[11px] ${subText} mt-0.5`}>
+                  <span className="flex items-center gap-1"><Clock size={11} /> {lec.time}</span>
+                  <span className="flex items-center gap-1"><Building2 size={11} /> {lec.college}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* الصف السفلي: العلامات (Tags) */}
+          <div className="flex items-center gap-2 mr-4">
+             <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium border ${isDark ? 'border-gray-600 bg-gray-800 text-gray-300' : 'border-gray-200 bg-white text-gray-600'}`}>
+               {lec.type === 'عملي' ? <FlaskConical size={10} /> : <Book size={10} />}
+               {lec.type}
+             </div>
+             <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium border ${
+               lec.mode === 'عن بعد' 
+                 ? (isDark ? 'border-purple-500/30 bg-purple-500/10 text-purple-300' : 'border-purple-200 bg-purple-50 text-purple-700')
+                 : (isDark ? 'border-gray-600 bg-gray-800 text-gray-300' : 'border-gray-200 bg-white text-gray-600')
+             }`}>
+               {lec.mode === 'عن بعد' ? <Monitor size={10} /> : <Users size={10} />}
+               {lec.mode}
+             </div>
+             <div className={`mr-auto text-[10px] px-2 py-0.5 rounded-md ${isDark ? 'bg-white/10' : 'bg-white shadow-sm'} font-medium`}>
+               {lec.loc}
+             </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const ExamsView = ({ data, themeStyles, subText, cardBg, isDark }) => (
+  <div className="h-full flex flex-col">
+    <div className="flex items-center gap-2 mb-3 px-1">
+      <div className={`p-1.5 rounded-lg ${isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-600'}`}>
+        <Calendar size={18} />
+      </div>
+      <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>الاختبارات القادمة</span>
+    </div>
+    <div className="flex flex-col gap-2.5 overflow-y-auto pr-1 custom-scrollbar flex-1">
+      {data.map((exam) => (
+        // استخدام نفس هيكل بطاقة المحاضرة (Lectures Card Structure)
+        <div key={exam.id} className={`${cardBg} p-3 rounded-2xl flex flex-col gap-2 active:scale-[0.98] transition-transform`}>
+          {/* الصف العلوي: الاسم وعدد الأيام المتبقية */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* شريط تمييز جانبي */}
+              <div className={`w-1.5 h-10 rounded-full ${exam.color}`}></div>
+              <div>
+                <h3 className="text-sm font-bold">{exam.name}</h3>
+                
+                {/* تفاصيل التاريخ والوقت والموقع */}
+                <div className={`flex items-center gap-3 text-[11px] ${subText} mt-0.5`}>
+                  <span className="flex items-center gap-1"><Calendar size={11} /> {exam.date}</span>
+                  <span className="flex items-center gap-1"><Clock size={11} /> {exam.time}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* الصف السفلي: الموقع وعداد الأيام */}
+          <div className="flex items-center gap-2 mr-4">
+             {/* أيقونة الموقع */}
+             <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium border ${isDark ? 'border-gray-600 bg-gray-800 text-gray-300' : 'border-gray-200 bg-white text-gray-600'}`}>
+               <MapPin size={10} />
+               {exam.loc}
+             </div>
+             
+             {/* عداد الأيام المتبقية */}
+             <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium border ${isDark ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-red-200 bg-red-50 text-red-700'}`}>
+               <Target size={10} />
+               {exam.daysLeft} أيام
+             </div>
+
+             {/* أيقونة المزيد (More) */}
+             <button className={`mr-auto p-1 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'} transition-colors`}>
+               <MoreHorizontal size={16} className={subText} />
+             </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+
+const AbsencesView = ({ data, themeStyles, subText, cardBg, isDark }) => (
+  <div className="h-full flex flex-col">
+    <div className="flex items-center gap-2 mb-3 px-1">
+      <div className={`p-1.5 rounded-lg ${isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600'}`}>
+        <AlertTriangle size={18} />
+      </div>
+      <div className="flex-1">
+        <span className={`text-base font-bold block ${isDark ? 'text-white' : 'text-gray-800'}`}>سجل الغياب</span>
+        <div className={`flex items-center gap-2 text-[9px] ${subText}`}>
+           <span className="flex items-center gap-1"><div className="w-0.5 h-2 bg-gray-400"></div>15% (بدون)</span>
+           <span className="flex items-center gap-1"><div className="w-0.5 h-2 bg-gray-400"></div>25% (بعذر)</span>
+        </div>
+      </div>
+    </div>
+    <div className="flex flex-col gap-2.5 overflow-y-auto pr-1 custom-scrollbar flex-1">
+      {data.map((abs, idx) => {
+        // تحديد الحالة بناءً على النسبة
+        let statusColor = "bg-green-500";
+        if (abs.percentage >= 20) {
+          statusColor = "bg-red-600";
+        } else if (abs.percentage >= 14) {
+          statusColor = "bg-orange-500";
+        } else if (abs.percentage >= 10) {
+          statusColor = "bg-yellow-500";
+        }
+
+        // حساب العرض بناء على مقياس أقصاه 30% ليكون 15% في المنتصف
+        const maxScale = 30;
+        const widthPercentage = Math.min((abs.percentage / maxScale) * 100, 100);
+
+        return (
+          <div key={idx} className={`${cardBg} p-3 rounded-2xl flex flex-col gap-2`}>
+            {/* الصف العلوي: مطابق تماماً للمحاضرات (اسم + معلومات) */}
+            <div className="flex justify-between items-center h-[26px]"> {/* تحديد ارتفاع ثابت للصف العلوي */}
+              <span className="text-sm font-bold truncate">{abs.name}</span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className={`text-[10px] ${subText}`}>{abs.count} غيابات</span>
+                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${isDark ? 'bg-white/10' : 'bg-white shadow-sm'}`}>
+                  {abs.percentage}%
+                </span>
+              </div>
+            </div>
+            
+            {/* الصف السفلي: البار (بدون نصوص تحته) */}
+            <div className="relative w-full h-[18px] flex items-center"> {/* ارتفاع ثابت للصف السفلي */}
+               {/* خلفية البار */}
+               <div className={`h-2.5 w-full rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
+               
+               {/* المؤشرات (Lines) */}
+               <div className={`absolute top-1 bottom-1 right-[50%] w-[1px] ${isDark ? 'bg-gray-500' : 'bg-gray-400'} z-20`}></div>
+               <div className={`absolute top-1 bottom-1 right-[83.33%] w-[1px] ${isDark ? 'bg-gray-500' : 'bg-gray-400'} z-20`}></div>
+
+               {/* شريط التقدم الفعلي */}
+               <div 
+                 className={`absolute top-[4.5px] right-0 h-2.5 rounded-full transition-all duration-500 ${statusColor} z-10 shadow-sm`} 
+                 style={{ width: `${widthPercentage}%` }}
+               ></div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
+
+const NotificationsView = ({ data, themeStyles, subText, cardBg, isDark }) => (
+  <div className="h-full flex flex-col">
+    <div className="flex items-center gap-2 mb-3 px-1">
+      <div className={`p-1.5 rounded-lg ${isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'}`}>
+        <Bell size={18} />
+      </div>
+      <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>آخر الإشعارات</span>
+    </div>
+    <div className="flex flex-col gap-2.5 overflow-y-auto pr-1 custom-scrollbar flex-1">
+      {data.map((notif) => (
+        <div key={notif.id} className={`${cardBg} p-3 rounded-2xl flex items-start gap-3`}>
+          <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${notif.important ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+          <div className="flex-1">
+            <p className="text-sm font-bold leading-snug">{notif.title}</p>
+            <div className="flex justify-between items-center mt-1">
+               <span className={`text-[11px] ${subText}`}>{notif.source}</span>
+               <span className={`text-[10px] opacity-60`}>{notif.time}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// --- الويدجت الرئيسي (Main Widget) ---
+
+const StudentWidget = ({ isDark }) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // إعدادات الوضع الداكن
+  const themeStyles = isDark 
+    ? "bg-[#1c1c1e] text-white border-gray-700/50" 
+    : "bg-white text-gray-900 border-gray-200";
+  const cardBg = isDark ? "bg-[#2c2c2e]" : "bg-gray-100";
+  const subText = isDark ? "text-gray-400" : "text-gray-500";
+
+  // قائمة الصفحات
+  const pages = [
+    { component: LecturesView, data: DATA.lectures },
+    { component: ExamsView, data: DATA.exams },
+    { component: AbsencesView, data: DATA.absences },
+    { component: NotificationsView, data: DATA.notifications }
+  ];
+
+  // التعامل مع السحب (Swipe Logic)
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) { // سحب لليسار -> التالي
+       nextPage();
+    } else if (isRightSwipe) { // سحب لليمين -> السابق
+       prevPage();
+    }
+  };
+
+  const nextPage = () => {
+    if (activeIndex < pages.length - 1) {
+      setIsAnimating(true);
+      setActiveIndex(prev => prev + 1);
+      setTimeout(() => setIsAnimating(false), 300);
+    }
+  };
+
+  const prevPage = () => {
+    if (activeIndex > 0) {
+      setIsAnimating(true);
+      setActiveIndex(prev => prev - 1);
+      setTimeout(() => setIsAnimating(false), 300);
+    }
+  };
+
+  const goToPage = (idx) => {
+      setIsAnimating(true);
+      setActiveIndex(idx);
+      setTimeout(() => setIsAnimating(false), 300);
+  }
+
+  const ActiveComponent = pages[activeIndex].component;
+
+  return (
+    <div 
+      className={`w-full h-full p-5 rounded-[2.5rem] shadow-2xl flex flex-col justify-between select-none overflow-hidden relative font-sans transition-all duration-300 border ${themeStyles}`} 
+      dir="rtl"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      
+      {/* الخلفية الضبابية */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 pointer-events-none" />
+
+      {/* المحتوى الرئيسي */}
+      <div className={`flex-1 overflow-hidden transition-opacity duration-300 ${isAnimating ? 'opacity-50' : 'opacity-100'}`}>
+        <ActiveComponent 
+           data={pages[activeIndex].data} 
+           themeStyles={themeStyles} 
+           subText={subText} 
+           cardBg={cardBg} 
+           isDark={isDark} 
+        />
+      </div>
+
+      {/* مؤشر الصفحات (Page Control) */}
+      <div className="flex justify-center items-center gap-2 pt-3 z-10">
+        {pages.map((_, idx) => (
+          <button 
+             key={idx}
+             onClick={() => goToPage(idx)}
+             className={`h-2 rounded-full transition-all duration-300 ${
+               activeIndex === idx 
+                 ? (isDark ? 'w-6 bg-white' : 'w-6 bg-gray-800') 
+                 : (isDark ? 'w-2 bg-gray-600' : 'w-2 bg-gray-300')
+             }`}
+          />
+        ))}
+      </div>
+      
+      {/* مناطق النقر للمحاكاة على سطح المكتب (غير مرئية) */}
+      <div className="absolute top-0 bottom-0 right-0 w-12 z-0 cursor-pointer opacity-0 hover:opacity-0" onClick={prevPage} title="Previous"></div>
+      <div className="absolute top-0 bottom-0 left-0 w-12 z-0 cursor-pointer opacity-0 hover:opacity-0" onClick={nextPage} title="Next"></div>
+    </div>
+  );
+};
+
+// --- الإطار الرئيسي للتطبيق (Phone Simulator) ---
+
+const App = () => {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    if (isDark) {
+      document.body.style.backgroundColor = '#000000';
+    } else {
+      document.body.style.backgroundColor = '#f2f2f7';
+    }
+  }, [isDark]);
+
+  return (
+    <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-500 font-sans ${isDark ? 'bg-black' : 'bg-gray-100'}`}>
+      
+      <div className="relative">
+        <div className={`relative w-[420px] h-[880px] rounded-[3.5rem] border-[8px] ${isDark ? 'border-[#3a3a3c] bg-black shadow-[0_0_0_2px_#555]' : 'border-gray-200 bg-white shadow-2xl'} overflow-hidden select-none`}>
+          
+          {/* شريط الحالة - الساعة */}
+          <div className={`absolute top-6 left-10 text-[15px] font-semibold z-50 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            9:41
+          </div>
+
+          {/* شريط الحالة - الأيقونات */}
+          <div className={`absolute top-6 right-10 flex items-center gap-1.5 z-50 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+             <Signal size={16} strokeWidth={2.5} className={isDark ? "fill-white" : "fill-black"} />
+             <Wifi size={16} strokeWidth={2.5} />
+             
+             {/* أيقونة البطارية بتصميم خاص دقيق (CSS Custom Battery) */}
+             <div className="relative flex items-center">
+                {/* جسم البطارية الخارجي */}
+                <div className={`w-[22px] h-[11px] rounded-[3px] border-[1px] ${isDark ? 'border-white/40' : 'border-black/40'} p-[1.5px]`}>
+                   {/* التعبئة الداخلية */}
+                   <div className={`h-full w-[60%] rounded-[1px] ${isDark ? 'bg-white' : 'bg-black'}`}></div>
+                </div>
+                {/* رأس البطارية (Nub) */}
+                <div className={`w-[2px] h-[4px] rounded-r-sm absolute -right-[3px] ${isDark ? 'bg-white/40' : 'bg-black/40'}`}></div>
+             </div>
+          </div>
+
+          <div className="absolute top-3 left-1/2 transform -translate-x-1/2 w-32 h-9 bg-black rounded-full z-50 flex items-center justify-center gap-4">
+             <div className="w-2 h-2 rounded-full bg-[#1a1a1a]"></div>
+          </div>
+
+          <div className="absolute inset-0 w-full h-full">
+            <img 
+               src={isDark 
+                 ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop" 
+                 : "https://images.unsplash.com/photo-1614850523060-8da1d56ae167?q=80&w=1000&auto=format&fit=crop"}
+               alt="Wallpaper" 
+               className="w-full h-full object-cover opacity-90 transition-opacity duration-500"
+            />
+          </div>
+
+          <div className="relative z-10 pt-16 px-6 h-full flex flex-col gap-6">
+            
+            {/* الويدجت - الحزمة الذكية */}
+            <div className="w-full aspect-[2/1.1] transition-transform duration-300">
+              <StudentWidget isDark={isDark} />
+            </div>
+            
+            <p className={`text-center text-sm font-medium ${isDark ? 'text-white/50' : 'text-white/80'} shadow-black drop-shadow-md`}>
+              اسحب الويدجت لليمين أو اليسار للتنقل
+            </p>
+
+            <div className="grid grid-cols-4 gap-4 mt-2 px-2">
+               {[...Array(12)].map((_, i) => (
+                 <div key={i} className="flex flex-col items-center gap-1">
+                   <div className={`w-14 h-14 rounded-2xl ${isDark ? 'bg-white/10 backdrop-blur-md' : 'bg-white/80 backdrop-blur-md'} shadow-sm`}></div>
+                   <div className={`w-10 h-1.5 rounded-full ${isDark ? 'bg-white/20' : 'bg-black/10'}`}></div>
+                 </div>
+               ))}
+            </div>
+
+            <div className={`absolute bottom-6 left-4 right-4 h-24 rounded-[2rem] ${isDark ? 'bg-white/10' : 'bg-white/40'} backdrop-blur-xl flex items-center justify-around px-4`}>
+                {[...Array(4)].map((_, i) => (
+                   <div key={i} className={`w-14 h-14 rounded-2xl ${['bg-green-500', 'bg-blue-500', 'bg-white', 'bg-red-500'][i]} shadow-lg`}></div>
+                ))}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <ThemeToggle isDark={isDark} toggle={() => setIsDark(!isDark)} />
+    </div>
+  );
+};
+
+export default App;
